@@ -1,0 +1,458 @@
+TERRAFLUX — CHẾ ĐỘ BẢN ĐỒ THEO DÕI BÃO BẰNG BIỂU TƯỢNG ĐỘNG
+
+1. Ý TƯỞNG CHUNG
+
+- Đây là một chế độ hiển thị riêng trong TerraFlux.
+- Khí quyển vẫn được mô phỏng ở bên dưới, nhưng các hệ thống bão được biểu diễn bằng biểu tượng động giản lược trên bản đồ.
+- Người dùng có thể quan sát vị trí, cường độ, tên, trạng thái và quỹ đạo của nhiều hệ thống cùng lúc.
+- Có thể chuyển giữa chế độ biểu tượng và các lớp dữ liệu vật lý như gió, áp suất, nhiệt độ, độ ẩm hoặc mây.
+- Các chế độ dùng chung dữ liệu và thời gian mô phỏng.
+
+Phong cách mong muốn:
+- Giống giao diện theo dõi mùa bão trong các animation khí tượng.
+- Bản đồ chiếm phần lớn màn hình.
+- Các bảng thông tin nổi phía trên bản đồ.
+- Một dải thống kê mùa bão chạy dọc phía dưới.
+- Biểu tượng bão nhiều màu, dễ nhận diện và có chuyển động.
+
+
+2. PHONG CÁCH HÌNH ẢNH
+
+- Tông nền tối:
+  + Biển xanh đen.
+  + Lục địa xanh sẫm với địa hình hoặc ảnh nền dạng vệ tinh.
+  + Các khu vực không phải trọng tâm có thể được giảm độ sáng.
+
+- Chữ:
+  + Chủ yếu màu trắng.
+  + Tên bão lớn, đậm, có viền hoặc bóng đen.
+  + Tiêu đề bảng và số liệu nổi bật.
+  + Một số nhãn phụ dùng chữ nghiêng.
+
+- Khung giao diện:
+  + Nền đen bán trong suốt.
+  + Viền trắng hoặc màu tương ứng với loại bão.
+  + Các thanh tiêu đề có đầu vát, hình thang hoặc đường cắt chéo.
+  + Đồng hồ và bộ đếm dạng vòng tròn.
+
+- Màu nhấn:
+  + Xanh cyan, xanh dương, xanh lá, vàng, cam, đỏ, hồng và tím.
+  + Màu sắc thống nhất giữa biểu tượng, chú giải và quỹ đạo.
+
+- Hiệu ứng:
+  + Phát sáng nhẹ quanh biểu tượng.
+  + Chuyển trạng thái và chuyển màu mượt.
+  + Có tùy chọn giảm hiệu ứng để dễ đọc và giảm tải máy.
+
+
+3. BẢN ĐỒ CHÍNH
+
+3.1. Nội dung nền
+
+- Đường bờ biển.
+- Địa hình hoặc ảnh nền vệ tinh.
+- Ranh giới quốc gia và các ranh giới hành chính khi cần.
+- Tên quốc gia, thành phố, đảo và quần đảo.
+- Ví dụ trong ảnh:
+  + Manila, Davao, Cebu, Hong Kong.
+  + Guam, Palau, Yap.
+  + Đài Loan, Philippines và khu vực Biển Đông.
+
+3.2. Lưới tọa độ
+
+- Hiển thị kinh tuyến và vĩ tuyến.
+- Đường lưới chính đậm hơn đường phụ.
+- Nhãn tọa độ lớn, dễ đọc.
+- Ví dụ: 115°E, 125°E, 135°E, 145°E.
+
+3.3. Ranh giới khu vực theo dõi
+
+- Có thể hiển thị ranh giới khu vực trách nhiệm hoặc vùng theo dõi.
+- Dùng đường đứt nét.
+- Tên vùng có thể đặt dọc hoặc nghiêng theo đường ranh giới.
+- Ví dụ trong ảnh có nhãn “PHILIPPINES AOR”.
+
+3.4. Điều khiển bản đồ
+
+- Kéo để di chuyển.
+- Phóng to và thu nhỏ.
+- Chọn vùng đại dương hoặc khu vực theo dõi.
+- Đổi phép chiếu.
+- Khóa camera để bám theo một hệ thống.
+- Bật/tắt tên địa danh, lưới tọa độ và ranh giới.
+
+3.5. Liên kết với chế độ khác
+
+- Có thể mở cùng hệ thống trên địa cầu 3D.
+- Có thể chuyển sang bản đồ trường vật lý.
+- Việc đổi chế độ không làm thay đổi trạng thái mô phỏng.
+
+
+4. BIỂU TƯỢNG ĐỘNG CỦA CÁC HỆ THỐNG
+
+4.1. Cấu tạo
+
+- Biểu tượng đặt tại vị trí tâm hệ thống.
+- Có phần lõi tròn chứa chữ hoặc số phân loại.
+- Bao quanh là các vòng, cung hoặc cánh xoáy cách điệu.
+- Màu sắc biểu thị trạng thái/cấp cường độ.
+- Có thể có quầng sáng và chuyển động xoay.
+
+4.2. Animation mong muốn
+
+- Cánh xoáy quay quanh tâm.
+- Các vòng sáng hoặc cung sáng chuyển động nhẹ.
+- Biểu tượng di chuyển theo vị trí hệ thống.
+- Khi mạnh lên hoặc yếu đi:
+  + Đổi màu.
+  + Đổi ký hiệu trung tâm.
+  + Chuyển hình dạng một cách mượt mà.
+
+- Khi chuyển loại:
+  + Chuyển sang biểu tượng tương ứng.
+  + Có thông báo trạng thái ngắn.
+
+- Khi tan:
+  + Biểu tượng mờ dần.
+  + Quỹ đạo vẫn được giữ lại nếu người dùng bật lịch sử.
+
+4.3. Quy tắc biểu diễn
+
+- Kích thước biểu tượng mặc định phục vụ khả năng đọc.
+- Không mặc định coi đường kính biểu tượng là kích thước vật lý của bão.
+- Có lớp riêng để hiển thị bán kính gió hoặc phạm vi ảnh hưởng nếu có dữ liệu.
+- Chiều quay phù hợp với bán cầu và trạng thái đang mô phỏng.
+- Tốc độ xoay của animation không được ngụ ý là tốc độ gió thực tế nếu chưa có ánh xạ rõ ràng.
+
+
+5. HỆ THỐNG PHÂN LOẠI VÀ CHÚ GIẢI
+
+5.1. Các hệ thống ngoài nhóm bão nhiệt đới
+
+- Tropical Disturbance:
+  + Nhiễu động nhiệt đới.
+  + Màu cyan.
+  + Ký hiệu L.
+  + Có thể là giai đoạn tiền thân của xoáy thuận nhiệt đới.
+
+- Extratropical Cyclone:
+  + Xoáy thuận ngoại nhiệt đới.
+  + Màu xám.
+  + Ký hiệu EX.
+
+- Remnant Low:
+  + Vùng áp thấp tàn dư.
+  + Màu xám.
+  + Ký hiệu dấu ×.
+
+5.2. Nhóm nhiệt đới và cận nhiệt đới
+
+- Tropical Depression:
+  + Áp thấp nhiệt đới.
+  + Màu xanh dương.
+  + Ký hiệu D.
+
+- Subtropical Depression:
+  + Áp thấp cận nhiệt đới.
+  + Màu tím.
+  + Ký hiệu SD.
+
+- Tropical Storm:
+  + Bão nhiệt đới.
+  + Màu xanh lá sáng.
+  + Ký hiệu S.
+
+- Subtropical Storm:
+  + Bão cận nhiệt đới.
+  + Màu xanh lá nhạt.
+  + Ký hiệu SS.
+
+5.3. Các cấp theo bảng SSHWS trong ảnh
+
+- Category 1:
+  + Ký hiệu 1.
+  + Màu vàng sáng.
+
+- Category 2:
+  + Ký hiệu 2.
+  + Màu vàng cam.
+
+- Category 3:
+  + Ký hiệu 3.
+  + Màu cam.
+
+- Category 4:
+  + Ký hiệu 4.
+  + Màu đỏ.
+
+- Category 5:
+  + Ký hiệu 5.
+  + Màu hồng/magenta.
+
+- Các ngưỡng gió được ghi trong ảnh tham chiếu:
+  + Depression: dưới 39 mph.
+  + Storm: 39–73 mph.
+  + Category 1: 74–95 mph.
+  + Category 2: 96–110 mph.
+  + Category 3: 111–129 mph.
+  + Category 4: 130–156 mph.
+  + Category 5: từ 157 mph.
+
+- Bộ ngưỡng, thời gian lấy trung bình gió và cách gọi cấp phải được xác định theo hệ phân loại đã chọn.
+- Cho phép đổi đơn vị giữa m/s, km/h, knot và mph.
+- Không trộn các thang phân loại khác nhau mà không chú thích.
+
+5.4. Bố trí bảng chú giải
+
+- Đặt ở góc trên trái.
+- Có logo/biểu trưng và tiêu đề nhóm.
+- Các mục xếp dọc thành từng hàng.
+- Mỗi hàng gồm:
+  + Biểu tượng.
+  + Tên loại.
+  + Mô tả ngắn hoặc khoảng tốc độ gió.
+  + Nền và viền cùng tông màu.
+
+- Có thể thu gọn hoặc chuyển nhóm:
+  + NON-TROPICAL STORM ICONS.
+  + TROPICAL STORM ICONS.
+  + TYPHOON / SSHWS STORM ICONS.
+
+
+6. NHÃN ĐI KÈM HỆ THỐNG
+
+- Đặt cạnh biểu tượng.
+- Gồm các thành phần có trong ảnh:
+  + Mã hệ thống, ví dụ 01W hoặc 91W.
+  + Tên quốc tế, ví dụ NOKAEN.
+  + Tên địa phương, ví dụ ADA.
+  + Trạng thái như INVEST.
+
+- Tự điều chỉnh vị trí để hạn chế chồng chữ hoặc che hệ thống khác.
+- Khi nhiều hệ thống ở gần nhau:
+  + Giảm bớt nhãn phụ.
+  + Ưu tiên hệ thống đang chọn.
+  + Cho phép mở danh sách để chọn.
+
+
+7. QUỸ ĐẠO VÀ LỊCH SỬ
+
+- Vẽ đường đi phía sau hệ thống.
+- Từng đoạn quỹ đạo được tô theo cấp cường độ tại thời điểm tương ứng.
+- Có thể kết hợp nét liền và nét chấm/đứt để phân biệt các giai đoạn.
+- Quy ước nét phải được giải thích trong chú giải.
+
+- Giữ lại đường đi sau khi hệ thống tan.
+- Có ký hiệu kết thúc hoặc dấu đánh dấu trạng thái cuối.
+- Cho phép bật/tắt quỹ đạo từng hệ thống hoặc toàn bộ mùa.
+- Chọn một đoạn đường đi để xem trạng thái tại thời điểm đó.
+
+- Nếu bổ sung quỹ đạo dự báo:
+  + Hiển thị tách biệt với quỹ đạo đã mô phỏng.
+  + Ghi rõ thời điểm phát hành và ý nghĩa của đường dự báo.
+
+
+8. THẺ THÔNG TIN BÃO ĐANG CHỌN
+
+- Đặt ở góc trên phải, giống thanh thông tin trong ảnh.
+- Dạng thanh ngang với nền tối và viền theo màu hệ thống.
+
+- Các thành phần xuất hiện trong ảnh:
+  + Biểu tượng và cấp bão.
+  + Loại hệ thống, ví dụ TROPICAL STORM.
+  + Tên bão.
+  + DAM‌AGES: thiệt hại kinh tế.
+  + DEATHS: số người thiệt mạng.
+  + ACE của riêng hệ thống.
+  + Biểu tượng tia sét cạnh ACE.
+
+- Có thể bổ sung trong TerraFlux:
+  + Tốc độ gió cực đại.
+  + Áp suất tâm.
+  + Vị trí tâm.
+  + Hướng và tốc độ di chuyển.
+  + Thời gian tồn tại.
+  + Nút bám theo tâm và mở biểu đồ diễn biến.
+
+
+9. DẢI THỐNG KÊ PHÍA DƯỚI
+
+9.1. Đồng hồ ngày/tháng
+
+- Đặt ở góc dưới trái.
+- Mặt đồng hồ tròn.
+- Ngày nằm ở giữa, tháng đặt bên dưới.
+- Có vòng hoặc cung bên ngoài thể hiện tiến trình thời gian.
+- Ví dụ trong ảnh: 13 JAN, 18 JAN, 27 JAN, 1 FEB.
+
+9.2. Bảng IMPACTS
+
+- Đặt cạnh đồng hồ.
+- Có hai hàng:
+  + DAMAGES.
+  + FATALITIES.
+
+- Hiển thị tổng thiệt hại kinh tế và số người thiệt mạng trong mùa.
+- Có thể cập nhật theo thời gian mô phỏng.
+
+9.3. Bộ đếm hoạt động mùa
+
+- Dạng đồng hồ tròn.
+- Các nhóm hiện trong ảnh:
+  + TS.
+  + C1+.
+  + C3+.
+
+- Hiển thị số lượng hệ thống đạt các ngưỡng tương ứng.
+- Ghi rõ các nhóm có thể bao hàm nhau.
+- Bên dưới có các giá trị chênh lệch nhỏ màu xanh hoặc đỏ khi có dữ liệu đối chiếu.
+
+9.4. Biểu đồ MONTHLY ACTIVITY
+
+- Biểu đồ hoạt động theo tháng.
+- Trục ngang từ JAN đến DEC.
+- Các cột hoặc nhóm màu tương ứng với TS, C1+ và C3+.
+- Có chú giải màu đặt gần tiêu đề.
+- Các tháng chưa diễn ra có thể để trống hoặc giảm độ sáng.
+
+9.5. Nhãn mùa mô phỏng
+
+- Đặt gần chính giữa phía dưới.
+- Năm lớn, ví dụ 2026.
+- Dòng mô tả bên dưới, ví dụ HYPOTHETICAL WPAC.
+- Thể hiện năm, khu vực và tính chất kịch bản.
+- Với TerraFlux có thể hiển thị thêm tên thí nghiệm.
+
+9.6. Đồng hồ ACE của mùa
+
+- Dạng tròn.
+- Hiển thị ACE tích lũy của toàn mùa.
+- Có thể có kim hoặc cung tiến trình.
+- Có giá trị chênh lệch nhỏ khi so sánh với mốc tham chiếu.
+
+9.7. Biểu đồ ACE TIMELINE
+
+- Hiển thị ACE tích lũy theo thời gian.
+- Có chú giải:
+  + THIS SEASON’S ACE.
+  + 1991–2020 AVG trong ảnh tham chiếu.
+
+- Đường của mùa mô phỏng có màu cyan.
+- Đường hoặc dấu tham chiếu có màu vàng.
+- Có trục tháng JAN–DEC.
+- Chỉ hiển thị đường trung bình khi đã có dữ liệu tham chiếu phù hợp.
+
+9.8. Đồng hồ ENSO
+
+- Dạng vòng tròn.
+- Hiển thị:
+  + Nhãn ENSO.
+  + Giá trị bất thường nhiệt độ, đơn vị °C.
+  + Trạng thái, ví dụ NEUTRAL.
+
+- Màu nền và vòng tròn thay đổi theo trạng thái.
+- Trong TerraFlux phải ghi rõ ENSO là:
+  + Giá trị được tính từ mô hình.
+  + Dữ liệu nhập ngoài.
+  + Hoặc thông số kịch bản cho trước.
+
+9.9. SEASON TIMELINE
+
+- Đặt ở góc dưới phải.
+- Trong ảnh tham chiếu, khung này chỉ hiện một phần.
+
+- Đề xuất hoàn thiện cho TerraFlux:
+  + Hiển thị thời gian tồn tại của từng hệ thống.
+  + Mỗi hệ thống có một thanh riêng.
+  + Màu từng đoạn biểu thị cường độ.
+  + Chọn thanh để mở hệ thống hoặc chuyển tới thời điểm tương ứng.
+
+
+10. NHÃN TÁC ĐỘNG NGAY TRÊN BẢN ĐỒ
+
+- Có thể xuất hiện gần vị trí xảy ra tác động.
+- Ví dụ trong ảnh:
+  + Nhãn $5m màu vàng.
+  + Số 1 màu đỏ.
+
+- Chú giải rõ các nhãn này là thiệt hại kinh tế và số người thiệt mạng.
+- Có thể xuất hiện ngắn hạn rồi mờ dần để hạn chế che bản đồ.
+- Bật/tắt độc lập.
+
+- Các số liệu tác động cần đến từ:
+  + Mô hình tác động riêng.
+  + Dữ liệu nhập ngoài.
+  + Hoặc kịch bản giả lập được ghi rõ.
+
+- Không tự suy ra thiệt hại và thương vong chỉ từ cấp bão.
+
+
+11. THÔNG BÁO VÀ CHÚ THÍCH
+
+- Có vùng văn bản ở góc trên phải khi không mở thẻ bão hoặc bảng được thu gọn.
+- Có thể dùng để hiển thị:
+  + Giải thích các ký hiệu.
+  + Thông báo chuyển trạng thái.
+  + Thông tin về kịch bản.
+  + Chú thích cách so sánh hoạt động mùa với mốc tham chiếu.
+
+- Theo ảnh tham chiếu, có chú thích rằng:
+  + Kịch bản là giả định.
+  + Không phải dự báo thời tiết thực tế.
+  + Các giá trị xanh/đỏ nhỏ biểu thị chênh lệch với giai đoạn khí hậu tham chiếu.
+
+- Trong TerraFlux, nội dung này cần ngắn gọn và có thể thu gọn.
+
+
+12. TƯƠNG TÁC BỔ SUNG CHO TERRAFLUX
+
+- Chọn biểu tượng để mở thông tin.
+- Di chuột để xem thông số nhanh.
+- Chọn quỹ đạo để xem lịch sử.
+- Bám camera theo hệ thống.
+- Chuyển giữa các hệ thống đang hoạt động.
+- Bật/tắt từng nhóm biểu tượng.
+- Điều chỉnh kích thước biểu tượng và nhãn.
+
+- Có thanh điều khiển thời gian:
+  + Chạy/tạm dừng.
+  + Tiến thêm một khoảng thời gian.
+  + Điều chỉnh tốc độ phát lại.
+  + Kéo tới thời điểm đã lưu.
+
+- Có thể thu gọn dải thống kê để tăng diện tích bản đồ.
+- Có tùy chọn chụp ảnh hoặc xuất video không kèm các nút điều khiển.
+
+
+13. NGUYÊN TẮC LIÊN KẾT VỚI MÔ PHỎNG
+
+- Biểu tượng là cách trình bày giản lược của một hệ thống.
+- Vị trí và trạng thái lấy từ kết quả nhận diện/theo dõi hoặc từ kịch bản đã khai báo.
+- Mỗi hệ thống có định danh ổn định để theo dõi qua thời gian.
+- Cấp cường độ phải dựa trên quy tắc phân loại được chọn.
+- Animation không thay thế việc tính toán vật lý.
+
+- Các trường chưa có dữ liệu phải hiển thị “chưa có dữ liệu” hoặc được ẩn.
+- Không mặc định điền số liệu trang trí như thể đó là kết quả mô hình.
+- Chuyển sang chế độ trường vật lý sẽ cho phép kiểm tra cấu trúc gió, áp suất, nhiệt độ và độ ẩm bên dưới cùng hệ thống.
+
+
+14. MỤC TIÊU TRẢI NGHIỆM
+
+- Nhìn nhanh:
+  + Biết có bao nhiêu hệ thống.
+  + Chúng ở đâu.
+  + Mạnh đến mức nào.
+  + Di chuyển theo hướng nào.
+
+- Quan sát theo mùa:
+  + Biết hoạt động bão phân bố ra sao theo thời gian.
+  + Theo dõi ACE và các thống kê liên quan.
+  + Xem lịch sử của từng hệ thống.
+
+- Nghiên cứu sâu:
+  + Chuyển từ biểu tượng giản lược sang trường vật lý.
+  + So sánh trạng thái giữa các thời điểm hoặc các nhánh thí nghiệm.
+
+Tên gợi ý cho chế độ:
+“Storm Tracker”
