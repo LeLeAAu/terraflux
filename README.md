@@ -29,6 +29,26 @@ julia --project=. viewer.jl --setup
 julia --project=. viewer.jl /path/to/output.nc
 ```
 
+## Chạy mô phỏng từ giao diện
+
+Dải **MÔ PHỎNG MỚI** nằm ngay phía trên phần phát lại:
+
+1. Bấm **Phiên mới** để khởi tạo một thí nghiệm khí quyển T32, 8 tầng từ điều kiện mặc định của SpeedyWeather. Đây là phiên độc lập, không tiếp tục từ khung dữ liệu đang xem.
+2. Chờ trạng thái **Đã tạm dừng**, rồi bấm **+6 giờ** để tính một bước, hoặc **Chạy** để tính liên tiếp.
+3. **Tạm dừng** yêu cầu dừng sau mốc 6 giờ đang tính. Trong lúc chờ, giao diện báo lệnh chưa xử lý; nó không hủy nửa chừng một bước.
+4. **Kết thúc** đóng phiên sau mốc đang tính. Sau đó có thể tạo phiên khác.
+
+Các nút này điều khiển **phép tính vật lý**. Nút **Phát/Dừng** và thanh thời gian bên dưới chỉ phát lại dữ liệu đã ghi. Mốc mới tự xuất hiện trên bản đồ/địa cầu sau mỗi 6 giờ tính xong; khi xem nguồn phiên đang chạy, giao diện theo mốc mới nhất. Có thể tạm dừng để xem lại các mốc cũ. Menu nguồn cho phép trở về **Tệp đã mở** trong khi phiên tiếp tục tính.
+
+- Bước tính đầu tiên của mỗi tiến trình phiên mới có thể mất vài phút để Julia biên dịch. Cửa sổ vẫn xoay bản đồ/địa cầu và xem dữ liệu đã có được trong thời gian này. Phiên mới có thể cần Internet để SpeedyWeather tải dữ liệu điều kiện biên.
+- Mỗi phiên hiện giới hạn **10 ngày**, giữ cấu hình T32/8 tầng như bản mô phỏng đã kiểm tra. Cần mở dữ liệu mẫu cùng lưới để dùng điều khiển trực tiếp.
+- SpeedyWeather chưa tính chẩn đoán nhiệt độ sát bề mặt cần cho **áp suất quy mực biển ở mốc khởi tạo**. Giao diện phiên mới ghi rõ trường này thiếu dữ liệu tại mốc 0, không thay bằng giá trị giả. Các trường trạng thái và mọi đầu ra tại mốc đã tính từ 6 giờ trở đi đều được kiểm tra hữu hạn; phát hiện mất ổn định sẽ dừng và báo lỗi.
+- Phiên lưu ở `sessions/session_…/`: cấu hình `config.toml`, nhật ký lệnh `commands/`, trạng thái `status.toml`, lỗi/tiến trình `worker.log`, và các thư mục `run_…` chứa NetCDF cùng `restart.jld2`. `sessions/` không được đưa vào Git. NetCDF thô của đoạn đầu vẫn chứa chẩn đoán áp suất khởi tạo chưa hợp lệ; dùng các mốc từ 6 giờ để phân tích áp suất.
+- Khi đóng cửa sổ, ứng dụng yêu cầu tiến trình mô phỏng kết thúc; nếu nó còn bận sau 3 giây thì dừng tiến trình đó. Những đoạn đã hoàn tất được giữ lại; đoạn đang tính có thể chưa hoàn chỉnh. Giao diện chỉ nạp các tệp đã đóng và vượt qua kiểm tra. Chưa có chức năng khôi phục phiên từ restart trong giao diện.
+- Mô hình được chạy nối tiếp bằng các lời gọi `run!` 6 giờ được thư viện hỗ trợ. Bộ kiểm tra xác nhận đồng hồ liên tục và trạng thái tiến triển; chưa khẳng định kết quả trùng bit với một lời gọi dài 10 ngày.
+
+![Điều khiển mô phỏng](docs/live.png)
+
 ## Địa cầu 3D
 
 Chọn **Địa cầu 3D** trong menu ở góc trên bên phải; chọn **Bản đồ 2D** để quay lại. Hai chế độ dùng chung trường, tầng, thời gian, điểm theo dõi và thang màu.
@@ -57,11 +77,12 @@ Phần bản đồ dùng kinh độ −180…180°, vĩ độ −90…90°, đư
 - `src/data.jl`: đọc/kiểm tra NetCDF, chuẩn hóa tọa độ và đơn vị, chọn trường/tầng/thời gian.
 - `src/viewer.jl`: giao diện GLMakie, bản đồ/địa cầu, các điều khiển và phát lại.
 - `src/globe.jl`: hình học từng ô địa cầu, chuyển tọa độ và chọn mặt cầu bằng tia nhìn.
+- `src/live.jl`, `src/live_worker.jl`: điều khiển tiến trình mô phỏng riêng và công bố các đoạn dữ liệu hoàn tất.
 - `viewer.jl`: điểm khởi chạy, nhận đường dẫn dữ liệu.
 - `main.jl`, `check_model.jl`: mô phỏng và kiểm tra trạng thái hiện có.
 - `note1.txt`: mục tiêu và lộ trình phát triển.
 
-Chạy mô phỏng trực tiếp, chỉnh trạng thái và so sánh A/B là các mốc tiếp theo; chưa có trong bản này.
+Chỉnh trạng thái, khôi phục phiên trong giao diện và so sánh A/B là các mốc tiếp theo; chưa có trong bản này.
 
 ## Kiểm tra
 
@@ -75,4 +96,13 @@ Kiểm thử giao diện 2D/3D: đổi trường/tầng/thời gian, chọn đi�
 
 ```sh
 julia --project=. test/viewer_smoke.jl
+```
+
+Kiểm thử tích hợp với mô hình thật (lần đầu cần thời gian biên dịch và dữ liệu điều kiện biên):
+
+```sh
+julia --project=. test/live_smoke.jl
+julia --project=. test/live_cleanup.jl
+# Kiểm tra nút giao diện với một worker thật, cần màn hình/OpenGL:
+julia --project=. test/live_viewer_smoke.jl
 ```

@@ -2,7 +2,7 @@ module TerraFluxData
 using SpeedyWeather: NCDataset, NCDatasets
 using Dates
 export WeatherData, load_weather, frame, color_limits, nearest_cell, sample_value,
-       FIELDS, field_label, field_unit, layer_label
+       FIELDS, field_label, field_unit, layer_label, append_weather, load_live_chunk
 
 const FIELDS = [:temp, :wind, :u, :v, :humid, :mslp]
 const LABELS = Dict(:temp => "Nhiệt độ", :wind => "Tốc độ gió", :u => "Gió Đông–Tây (u)",
@@ -95,4 +95,25 @@ function nearest_cell(d, lon, lat)
 end
 sample_value(d, field, layer, time, lon, lat) = frame(d, field, layer, time)[nearest_cell(d, lon, lat)...]
 layer_label(d, k) = "Tầng $k / $(length(d.layers)) · σ = $(round(d.layers[k]; digits=4))"
+
+function append_weather(a::WeatherData, b::WeatherData)
+    (a.lon == b.lon && a.lat == b.lat && a.layers == b.layers) || error("Lưới phiên mô phỏng đã thay đổi.")
+    b.times[1] == a.times[end] || error("Các đoạn mô phỏng không nối tiếp nhau.")
+    length(b.times) > 1 || error("Đoạn mô phỏng không có thời gian mới.")
+    fields = Dict{Symbol,Array{Float32}}()
+    for f in keys(a.fields)
+        new = f == :mslp ? b.fields[f][:,:,2:end] : b.fields[f][:,:,:,2:end]
+        fields[f] = cat(a.fields[f],new;dims=ndims(new))
+    end
+    WeatherData(b.path,a.lon,a.lat,a.layers,vcat(a.times,b.times[2:end]),fields)
+end
+
+
+"SpeedyWeather has not computed surface-air diagnostics for initial MSLP at t=0."
+function load_live_chunk(path; initial=false)
+    d = load_weather(path)
+    initial && (d.fields[:mslp][:,:,1] .= NaN32)
+    d
+end
+
 end

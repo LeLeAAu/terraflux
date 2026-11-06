@@ -1,0 +1,75 @@
+module TerraFluxLive
+using TOML
+export LiveSession, start_session, send_command!, read_status, stop_session!, atomic_toml
+
+mutable struct LiveSession
+    directory::String
+    process::Base.Process
+    sequence::Int
+end
+
+function atomic_toml(path, data)
+    temporary = path * ".tmp"
+    open(temporary,"w") do io
+        TOML.print(io,data)
+    end
+    mv(temporary,path;force=true)
+end
+
+function start_session(; root=joinpath(@__DIR__,"..","sessions"), max_chunks=40)
+    max_chunks > 0 || throw(ArgumentError("Số bước phải lớn hơn 0."))
+    mkpath(root)
+    directory = mktempdir(abspath(root);prefix="session_",cleanup=false)
+    mkpath(joinpath(directory,"commands"))
+    atomic_toml(joinpath(directory,"config.toml"),Dict("truncation"=>32,"layers"=>8,
+        "chunk_hours"=>6,"max_chunks"=>max_chunks,"model"=>"PrimitiveWetModel",
+        "initial_mslp"=>"unavailable_before_surface_diagnostics",
+        "julia_version"=>string(VERSION),"created_at"=>string(time())))
+    atomic_toml(joinpath(directory,"status.toml"),Dict("state"=>"starting","completed"=>0,"files"=>String[]))
+    project = abspath(joinpath(@__DIR__,".."))
+    worker = joinpath(@__DIR__,"live_worker.jl")
+    cmd = `$(Base.julia_cmd()) --startup-file=no --threads=2 --project=$project $worker $directory`
+    process = open(joinpath(directory,"worker.log"),"w") do io
+        run(pipeline(addenv(Cmd(cmd;dir=directory),"OPENBLAS_NUM_THREADS"=>"1"),stdout=io,stderr=io);wait=false)
+    end
+    LiveSession(directory,process,0)
+end
+
+function send_command!(session::LiveSession, action::String)
+    action in ("run","pause","step","stop") || throw(ArgumentError("Lệnh không hỗ trợ: $action"))
+    process_running(session.process) || error("Tiến trình mô phỏng đã kết thúc. Xem $(joinpath(session.directory,"worker.log"))")
+    session.sequence += 1
+    command = Dict("sequence"=>session.sequence,"action"=>action)
+    atomic_toml(joinpath(session.directory,"commands",lpad(string(session.sequence),6,'0')*".toml"),command)
+end
+
+function read_status(session::LiveSession)
+    # Windows may briefly remove the old destination during replacement.
+    status = nothing
+    for attempt in 1:4
+        try
+            status = TOML.parsefile(joinpath(session.directory,"status.toml"))
+            break
+        catch
+            attempt == 4 && rethrow()
+            sleep(0.01)
+        end
+    end
+    if process_exited(session.process) && !(status["state"] in ("complete","stopped","error"))
+        status["state"] = "error"
+        status["error"] = "Tiến trình kết thúc ngoài dự kiến. Xem worker.log trong thư mục phiên."
+    end
+    status
+end
+
+function stop_session!(session::LiveSession; timeout=3.0)
+    if process_running(session.process)
+        send_command!(session,"stop")
+        if timedwait(() -> process_exited(session.process),timeout;pollint=0.05) == :timed_out
+            kill(session.process)
+        end
+        wait(session.process)
+    end
+    nothing
+end
+end

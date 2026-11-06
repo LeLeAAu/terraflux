@@ -1,6 +1,8 @@
 module TerraFluxViewer
 include("data.jl")
 include("globe.jl")
+include("live.jl")
+using .TerraFluxLive
 using .TerraFluxGlobe
 using .TerraFluxData
 using GLMakie
@@ -15,7 +17,7 @@ const MUTED = colorant"#a6b7c8"
 const ACCENT = colorant"#66ded0"
 colormap_for(f) = f in (:u, :v) ? :balance : f == :humid ? :haline : f == :mslp ? :viridis : f == :wind ? :speed : :thermal
 
-function build_viewer(d::WeatherData)
+function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessions"))
     set_theme!(theme_dark(); fontsize=15, backgroundcolor=BG, textcolor=INK,
         Axis=(backgroundcolor=PANEL, xgridcolor=(:white, 0.08), ygridcolor=(:white, 0.08)))
     fig = Figure(size=(1440, 860), figure_padding=26)
@@ -40,8 +42,9 @@ function build_viewer(d::WeatherData)
     Label(sidebar[8, 1], pointtext, fontsize=14, halign=:left, justification=:left)
     stattext = Observable("")
     Label(sidebar[9, 1], stattext, fontsize=13, color=MUTED, halign=:left, justification=:left)
-    Label(sidebar[10, 1], "Lưới đầu ra: $(length(d.lon)) × $(length(d.lat))\n$(length(d.layers)) tầng · $(length(d.times)) thời điểm\nPhóng to không tăng độ phân giải.", fontsize=12, color=MUTED, halign=:left, justification=:left)
-    rowgap!(sidebar, 18)
+    gridtext = Observable("Lưới đầu ra: $(length(d.lon)) × $(length(d.lat))\n$(length(d.layers)) tầng · $(length(d.times)) thời điểm\nPhóng to không tăng độ phân giải.")
+    Label(sidebar[10, 1], gridtext, fontsize=12, color=MUTED, halign=:left, justification=:left)
+    rowgap!(sidebar, 12)
     maparea = GridLayout(fig[2, 2])
     title = Observable("")
     Label(maparea[1, 1:2], title, font=:bold, fontsize=16)
@@ -122,14 +125,25 @@ function build_viewer(d::WeatherData)
         reset_globe()
     end
     notify(viewmenu.selection)
-    timeline = GridLayout(fig[3, 1:2])
+    livepanel = GridLayout(fig[3, 1:2])
+    livestatus = Observable("MÔ PHỎNG MỚI / T32 · 8 tầng · tối đa 10 ngày · mỗi bước 6 giờ")
+    Label(livepanel[1,1:7],livestatus;fontsize=12,color=ACCENT,halign=:left,tellwidth=false)
+    sourcemenu = Menu(livepanel[2,1],options=[("Tệp đã mở",:file),("Phiên mô phỏng",:live)],default=1,width=170)
+    newrun = Button(livepanel[2,2],label="Phiên mới",buttoncolor=PANEL,labelcolor=INK)
+    runmodel = Button(livepanel[2,3],label="Chạy",buttoncolor=PANEL,labelcolor=INK)
+    pausemodel = Button(livepanel[2,4],label="Tạm dừng",buttoncolor=PANEL,labelcolor=INK)
+    stepmodel = Button(livepanel[2,5],label="+6 giờ",buttoncolor=PANEL,labelcolor=INK)
+    stopmodel = Button(livepanel[2,6],label="Kết thúc",buttoncolor=PANEL,labelcolor=INK)
+    Label(livepanel[2,7],"Độc lập với phát lại",fontsize=12,color=MUTED)
+    timeline = GridLayout(fig[4, 1:2])
     clocktext = Observable("")
     Label(timeline[1, 1:4], clocktext, fontsize=17, font=:bold, halign=:left)
     back = Button(timeline[2, 1], label="◀", width=50, buttoncolor=PANEL, labelcolor=INK)
     play = Button(timeline[2, 2], label="Phát", width=95, buttoncolor=PANEL, labelcolor=INK)
     forward = Button(timeline[2, 3], label="▶", width=50, buttoncolor=PANEL, labelcolor=INK)
     slider = Slider(timeline[2, 4], range=1:length(d.times), startvalue=1)
-    Label(timeline[3, 1:4], "Phát lại: 2 khung/giây · Không chạy thêm mô phỏng · $(basename(d.path))", fontsize=12, color=MUTED, halign=:left)
+    sourceinfo = Observable("Phát lại: 2 khung/giây · Tệp đã mở · $(basename(d.path))")
+    Label(timeline[3, 1:4],sourceinfo,fontsize=12,color=MUTED,halign=:left)
     rowsize!(fig.layout, 1, Fixed(88))
     colsize!(fig.layout, 1, Fixed(285))
     colgap!(fig.layout, 28)
@@ -158,7 +172,7 @@ function build_viewer(d::WeatherData)
         title[] = "$(field_label(f)) / $(field_unit(f))\n$description"
         clocktext[] = "$(Dates.format(d.times[t], dateformat"yyyy-mm-dd HH:MM"))   ·   Khung $t / $(length(d.times))"
         finite = filter(isfinite, vec(a))
-        stattext[] = isempty(finite) ? "Khung này thiếu dữ liệu." : @sprintf("Toàn bản đồ / %s\nMin  %.3f\nMax  %.3f", field_unit(f), minimum(finite), maximum(finite))
+        stattext[] = isempty(finite) ? (f == :mslp && sourcemenu.selection[] == :live && t == 1 ? "Áp suất mốc khởi tạo\nchưa được mô hình tính." : "Khung này thiếu dữ liệu.") : @sprintf("Toàn bản đồ / %s\nMin  %.3f\nMax  %.3f", field_unit(f), minimum(finite), maximum(finite))
         refresh_point()
     end
     on(fieldmenu.selection) do f
@@ -217,8 +231,93 @@ function build_viewer(d::WeatherData)
         end
         Consume(false)
     end
+    original = d
+    session = Ref{Union{Nothing,LiveSession}}(nothing)
+    history = Ref{Union{Nothing,WeatherData}}(nothing)
+    imported = Ref(0)
+    function replace_data!(next)
+        (next.lon == original.lon && next.lat == original.lat && next.layers == original.layers) ||
+            error("Phiên trực tiếp hiện yêu cầu cùng lưới T32/8 tầng với dữ liệu đang mở.")
+        d = next
+        playing[] = false
+        time[] = length(d.times)
+        slider.range[] = 1:length(d.times)
+        set_close_to!(slider,length(d.times))
+        gridtext[] = "Lưới đầu ra: $(length(d.lon)) × $(length(d.lat))\n$(length(d.layers)) tầng · $(length(d.times)) thời điểm\nPhóng to không tăng độ phân giải."
+        sourceinfo[] = sourcemenu.selection[] == :live ? "PHÁT LẠI / phiên mới · 2 khung/giây · $(basename(session[].directory))" :
+            "PHÁT LẠI / tệp đã mở · 2 khung/giây · $(basename(original.path))"
+        refresh()
+    end
+    on(sourcemenu.selection) do source
+        if source == :file
+            replace_data!(original)
+        elseif history[] !== nothing
+            replace_data!(history[])
+        else
+            livestatus[] = "Phiên chưa có đầu ra. Bấm Chạy hoặc +6 giờ; bản đồ vẫn đang hiển thị tệp đã mở."
+        end
+    end
+    function poll_live!()
+        session[] === nothing && return
+        status = read_status(session[])
+        for path in status["files"][imported[]+1:end]
+            chunk = load_live_chunk(path;initial=imported[] == 0)
+            history[] = history[] === nothing ? chunk : append_weather(history[],chunk)
+            imported[] += 1
+        end
+        if sourcemenu.selection[] == :live && history[] !== nothing && d !== history[]
+            replace_data!(history[])
+        end
+        state = status["state"]
+        text = Dict("starting"=>"Đang khởi tạo (lần đầu có thể mất vài phút)",
+            "paused"=>"Đã tạm dừng", "running"=>"Đang chạy", "stepping"=>"Đang tính một bước 6 giờ",
+            "complete"=>"Đã hoàn tất 10 ngày", "stopped"=>"Đã kết thúc", "error"=>"Lỗi mô phỏng")
+        message = get(text,state,state)
+        pending = get(status,"sequence",0) < session[].sequence
+        pending && (message *= " · lệnh đang chờ mốc 6 giờ")
+        state == "error" && (message *= " · " * first(get(status,"error","Xem worker.log"),180))
+        livestatus[] = "$message · Đã tính $(status["completed"]*6) giờ · $(basename(session[].directory))"
+        status
+    end
+    on(newrun.clicks) do _
+        try
+            if session[] !== nothing && process_running(session[].process)
+                livestatus[] = "Phiên hiện tại còn hoạt động. Bấm Kết thúc trước khi tạo phiên mới."
+            elseif (length(original.lon),length(original.lat),length(original.layers)) != (96,48,8)
+                livestatus[] = "Hãy mở dữ liệu mẫu T32/8 tầng để tạo phiên mô phỏng trực tiếp."
+            else
+                session[] = start_session(;root=session_root)
+                history[] = nothing
+                imported[] = 0
+                sourcemenu.i_selected[] = 2
+                poll_live!()
+            end
+        catch err
+            livestatus[] = first(sprint(showerror,err),220)
+        end
+    end
+    function request_model(action)
+        try
+            session[] === nothing && error("Bấm Phiên mới trước.")
+            status = read_status(session[])
+            if action == "step" && (status["state"] != "paused" || get(status,"sequence",0) < session[].sequence)
+                livestatus[] = "Bước +6 giờ chỉ dùng sau khi phiên đã tạm dừng và xử lý xong lệnh trước."
+                return
+            end
+            action in ("run","step") && (sourcemenu.i_selected[] = 2)
+            send_command!(session[],action)
+            poll_live!()
+        catch err
+            livestatus[] = first(sprint(showerror,err),220)
+        end
+    end
+    on(runmodel.clicks) do _; request_model("run"); end
+    on(pausemodel.clicks) do _; request_model("pause"); end
+    on(stepmodel.clicks) do _; request_model("step"); end
+    on(stopmodel.clicks) do _; request_model("stop"); end
     refresh()
-    (; fig, ax, globe, viewmenu, resetview, vertexcolors, globe_marker, fieldmenu, layermenu, lockscale, slider, selected, field, layer, time,
+    (; fig, ax, globe, session, history, sourcemenu, newrun, runmodel, pausemodel, stepmodel, stopmodel,
+        livestatus, poll_live!, replace_data!, viewmenu, resetview, vertexcolors, globe_marker, fieldmenu, layermenu, lockscale, slider, selected, field, layer, time,
         pointtext, mapvalues, limits, play, back, forward, playing)
 end
 
@@ -236,14 +335,26 @@ function launch(path)
     data = load_weather(path)
     viewer = build_viewer(data)
     screen = display(viewer.fig)
-    @async begin
+    ticker = @async begin
+        tick = 0
         while isopen(screen)
-            sleep(0.5)
+            sleep(0.25)
             isopen(screen) || break
-            advance_playback!(viewer)
+            try
+                viewer.poll_live!()
+            catch err
+                viewer.livestatus[] = "Không đọc được phiên: " * first(sprint(showerror,err),180)
+            end
+            tick += 1
+            iseven(tick) && advance_playback!(viewer)
         end
     end
-    wait(screen)
+    try
+        wait(screen)
+    finally
+        viewer.session[] !== nothing && stop_session!(viewer.session[])
+        wait(ticker)
+    end
     viewer
 end
 end

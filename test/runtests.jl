@@ -42,6 +42,15 @@ end
         @test color_limits(d,:temp,1,1; locked=false) != color_limits(d,:temp,1,2; locked=false)
         @test color_limits(d,:u,1,1) == (-3f0,3f0)
         @test color_limits(d,:humid,1,1)[1] < color_limits(d,:humid,1,1)[2]
+        later = WeatherData(d.path,d.lon,d.lat,d.layers,d.times .+ Hour(6),d.fields)
+        joined = append_weather(d,later)
+        @test joined.times == [DateTime(2000),DateTime(2000)+Hour(6),DateTime(2000)+Hour(12)]
+        @test frame(joined,:temp,2,3) == frame(later,:temp,2,2)
+        @test frame(joined,:mslp,1,3) == frame(later,:mslp,1,2)
+        gap = WeatherData(d.path,d.lon,d.lat,d.layers,d.times .+ Hour(12),d.fields)
+        @test_throws ErrorException append_weather(d,gap)
+        wrong_grid = WeatherData(d.path,d.lon .+ 1,d.lat,d.layers,later.times,d.fields)
+        @test_throws ErrorException append_weather(d,wrong_grid)
         @test_throws BoundsError frame(d,:temp,3,1)
         @test_throws Exception load_weather(joinpath(dir,"absent.nc"))
         NCDataset(path,"a") do ds
