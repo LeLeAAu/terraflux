@@ -1,0 +1,401 @@
+1. THẾ GIỚI MÔ PHỎNG
+
+1.1. Các thành phần chính
+
+- Khí quyển:
+  + Gió, nhiệt độ, áp suất và hơi nước theo nhiều tầng.
+  + Mây, giáng thủy và các quá trình trao đổi với bề mặt.
+  + Các cấu trúc hoàn lưu và nhiễu động xoáy.
+
+- Đại dương:
+  + Nhiệt độ, độ mặn và mật độ theo chiều sâu.
+  + Dòng chảy bề mặt và dòng chảy sâu.
+  + Trao đổi giữa các vùng và các tầng nước.
+
+- Bề mặt:
+  + Lục địa, đại dương, địa hình và băng biển.
+  + Ảnh hưởng đến trao đổi nhiệt, nước và động lượng.
+
+1.2. Các dải và hệ thống hoàn lưu khí quyển
+
+- Quan sát các đới tín phong, gió Tây, gió Đông cực.
+- Quan sát dòng tia và hoàn lưu Hadley–Ferrel–cực.
+- Các cấu trúc được phép dịch chuyển, uốn lượn và thay đổi cường độ khi điều kiện thay đổi.
+- Không cố định khí quyển thành các dải gió bất biến.
+
+1.3. Các thế giới khởi đầu
+
+- Trái Đất với địa hình và phân bố lục địa–đại dương.
+- Hành tinh toàn đại dương.
+- Hành tinh không có địa hình.
+- Trạng thái lý tưởng hóa để nghiên cứu một cơ chế riêng.
+
+
+2. ĐẠI DƯƠNG VÀ TUẦN HOÀN NHIỆT MUỐI
+
+2.1. Mục tiêu
+
+- Mô phỏng ảnh hưởng của nhiệt độ và độ mặn đến mật độ nước.
+- Biểu diễn các vùng nước chìm xuống, nước trồi lên và trao đổi giữa các tầng.
+- Quan sát ảnh hưởng của hoàn lưu đại dương đến sự phân bố nhiệt.
+- Thể hiện tác động của làm nóng/lạnh, mưa, bốc hơi và băng biển đến trạng thái nước.
+
+2.2. Các mức mô phỏng
+
+- Mức giản lược:
+  + Chia đại dương thành các vùng hoặc tầng nước.
+  + Tính trao đổi nhiệt và muối giữa các vùng/tầng.
+  + Dùng để hiểu cơ chế và thử nghiệm giả thuyết.
+  + Ghi rõ những mũi tên hoàn lưu đang biểu diễn đại lượng nào.
+
+- Mức không gian ba chiều:
+  + Tính dòng chảy theo vị trí và độ sâu.
+  + Theo dõi nhiệt độ, độ mặn và mật độ trong không gian.
+  + Phục vụ nghiên cứu bản đồ hoàn lưu.
+
+2.3. Liên kết với khí quyển
+
+- Trao đổi nhiệt, hơi nước/nước ngọt và động lượng.
+- Các thành phần dùng chung một dòng thời gian vật lý.
+- Có thể sử dụng bước tính khác nhau cho từng thành phần, nhưng phải đồng bộ khi trao đổi dữ liệu.
+- Phân biệt tốc độ chạy mô phỏng với tốc độ phát lại hình ảnh.
+
+2.4. Phạm vi của SpeedyWeather
+
+- SlabOcean hiện có thể biểu diễn sự nóng lên/lạnh đi của lớp biển do trao đổi nhiệt.
+- SlabOcean không có độ mặn và không mô phỏng hoàn lưu đại dương sâu.
+- Tuần hoàn nhiệt muối cần một thành phần đại dương riêng.
+
+
+3. BỘ CÔNG CỤ CAN THIỆP
+
+3.1. Chọn phạm vi tác động
+
+- Một điểm.
+- Vùng tròn theo bán kính.
+- Vùng tự vẽ.
+- Dải vĩ độ.
+- Toàn cầu.
+
+- Chọn tầng khí quyển hoặc khoảng độ cao.
+- Chọn tầng nước hoặc khoảng độ sâu.
+- Xem trước phạm vi và hình dạng tác động trước khi áp dụng.
+
+3.2. Nhóm nhiệt độ
+
+- Nhiệt độ khí quyển cục bộ.
+- Phân bố nhiệt độ theo tầng.
+- Nhiệt độ mặt biển.
+- Nhiệt độ một phần hoặc toàn bộ cột nước.
+- Tăng/giảm nhiệt trên một vùng hoặc toàn cầu.
+
+- Nếu chỉnh “nhiệt độ trung bình khí quyển”, phải xác định cách phân bố thay đổi:
+  + Tăng đều toàn khí quyển.
+  + Chỉ tác động tầng thấp.
+  + Chỉ tác động một vùng hoặc một dải vĩ độ.
+
+3.3. Nhóm hơi nước và độ mặn
+
+- Thêm/bớt hơi nước trong khí quyển.
+- Thay đổi độ mặn theo vùng và độ sâu.
+- Bổ sung nước ngọt vào đại dương.
+- Theo dõi ảnh hưởng đến mật độ và phân tầng nước.
+
+3.4. Nhóm gió và động lực học
+
+- Hướng và tốc độ gió theo tầng.
+- Phân bố gió trong một vùng.
+- Độ đứt gió:
+  + Chọn các tầng dùng để so sánh.
+  + Điều chỉnh chênh lệch vector gió, gồm cả hướng và độ lớn.
+
+- Tạo áp thấp, áp cao hoặc nhiễu động xoáy.
+- Điều chỉnh phân bố áp suất quanh tâm:
+  + Áp suất tâm.
+  + Áp suất môi trường.
+  + Hình dạng biến thiên theo bán kính.
+
+3.5. Nhóm thông số hành tinh
+
+- Tốc độ quay.
+- Trong chế độ nâng cao: thử nghiệm thay đổi bán kính hoặc trọng lực.
+
+- Coriolis mặc định được xác định từ vĩ độ và tốc độ quay hành tinh.
+- Nếu thay đổi Coriolis độc lập, phải ghi rõ đây là một giả thiết thí nghiệm.
+
+3.6. Ý nghĩa của bán kính ảnh hưởng
+
+- Bán kính quy định phạm vi tác động hoặc cấu trúc ban đầu.
+- Sau khi thả cho hệ tiến triển, kích thước và hình dạng được phép thay đổi.
+
+
+4. CÔNG CỤ TẠO XOÁY VÀ NHIỄU ĐỘNG
+
+4.1. Các thông số đầu vào
+
+- Vị trí.
+- Kích thước.
+- Chiều quay.
+- Cường độ.
+- Phạm vi theo chiều cao.
+- Phân bố gió, áp suất, nhiệt độ và độ ẩm đi kèm.
+
+4.2. Các mẫu khởi tạo
+
+- Áp thấp yếu.
+- Áp cao.
+- Xoáy nhiệt đới lý tưởng hóa.
+- Nhiễu động trong dòng tia.
+- Các mẫu thí nghiệm tùy chỉnh.
+
+4.3. Trải nghiệm thao tác
+
+- Xem trước cấu trúc và vùng bị tác động.
+- Áp dụng tức thời hoặc tăng dần.
+- Theo dõi vị trí tâm, quỹ đạo, kích thước và cường độ.
+- Quan sát tương tác với môi trường và các nhiễu động khác.
+
+4.4. Yêu cầu vật lý
+
+- Các mẫu khởi tạo cần phối hợp gió, áp suất, nhiệt và ẩm một cách phù hợp.
+- Không coi mọi thông số là những nút độc lập hoàn toàn.
+- Phân biệt “tạo nhiễu động ban đầu” với “liên tục duy trì một xoáy”.
+
+4.5. Mục tiêu ban đầu
+
+- Ưu tiên hoàn lưu lớn và động lực học xoáy.
+- Khả năng biểu diễn cấu trúc bão chi tiết phải được đánh giá theo lõi mô hình, sơ đồ vật lý và độ phân giải.
+- Không mặc định rằng hình ảnh xoáy đẹp đồng nghĩa với mô phỏng đầy đủ vật lý của bão.
+
+
+5. CÁCH ÁP DỤNG THAY ĐỔI VÀ PHẢN ỨNG CỦA HỆ
+
+5.1. Ba cách áp dụng
+
+- Tức thời:
+  + Thay trạng thái một lần.
+  + Sau đó để hệ tự tiến triển.
+
+- Tăng dần:
+  + Phân bố tác động trong một khoảng thời gian.
+  + Cho phép chọn thời lượng và diễn biến cường độ.
+
+- Duy trì:
+  + Tiếp tục cung cấp hoặc lấy đi nhiệt, nước, muối hay động lượng trong thời gian đã chọn.
+
+Ví dụ:
+- Làm nóng vùng biển một lần.
+- Liên tục cấp nhiệt cho vùng biển.
+- Giữ nhiệt độ vùng biển tại một giá trị.
+
+Đây là các thí nghiệm khác nhau và cần được phân biệt.
+
+5.2. Cách hiểu “tự điều chỉnh”
+
+- Sau tác động, hệ tiến triển theo các phương trình và quá trình vật lý mà mô hình biểu diễn.
+- Hệ có thể điều chỉnh, dao động, hình thành cấu trúc mới hoặc chuyển sang trạng thái khác.
+- Không bảo đảm mọi tác động đều làm hệ trở lại trạng thái ban đầu.
+
+5.3. Giới hạn khi tùy chỉnh
+
+- Tính hợp lệ vật lý của đại lượng.
+- Tính nhất quán giữa các đại lượng.
+- Phạm vi áp dụng của mô hình và các công thức.
+- Khả năng ổn định của phép tính.
+
+- Nhiệt độ lớn hơn 0 K chỉ là một điều kiện cơ bản, chưa đủ để bảo đảm toàn bộ trạng thái hợp lệ.
+
+5.4. Xử lý tác động bất thường
+
+- Kiểm tra trước khi áp dụng.
+- Ghi nhận lượng nhiệt, nước, muối và động lượng được thêm/bớt.
+- Báo rõ khi vượt phạm vi đã kiểm chứng.
+- Lưu trạng thái trước tác động để có thể khôi phục.
+- Khi phép tính mất ổn định, báo rõ và dừng hoặc quay lại trạng thái đã lưu.
+- Không âm thầm sửa thông số rồi coi đó là phản ứng tự nhiên.
+
+
+6. GIAO DIỆN QUAN SÁT ĐA TẦNG
+
+6.1. Các kiểu quan sát
+
+- Địa cầu 3D:
+  + Xoay và phóng to.
+  + Chọn hoặc theo dõi một khu vực.
+  + Quan sát khí quyển và đại dương theo tầng.
+
+- Bản đồ 2D:
+  + Kinh–vĩ độ.
+  + Equal Earth.
+  + Mollweide.
+  + Các phép chiếu phù hợp để quan sát vùng cực.
+  + Cho phép đổi kinh tuyến trung tâm.
+
+- Mặt cắt:
+  + Khí quyển theo độ cao.
+  + Đại dương theo độ sâu.
+  + Mặt cắt qua một vùng hoặc một cấu trúc được chọn.
+
+6.2. Các lớp bật/tắt độc lập
+
+- Nhiệt độ.
+- Áp suất.
+- Độ ẩm.
+- Độ mặn và mật độ nước biển.
+- Đường đẳng áp.
+- Mũi tên gió.
+- Hạt chuyển động biểu diễn gió.
+- Dòng biển theo tầng.
+- Mây và giáng thủy.
+- Băng biển.
+- Tâm xoáy và quỹ đạo.
+- Vùng đang bị tác động.
+
+6.3. Yêu cầu hiển thị
+
+- Có đơn vị, thang màu và thời gian mô phỏng.
+- Ghi rõ tầng khí quyển, mặt áp suất hoặc độ sâu đang xem.
+- Phân biệt áp suất bề mặt với áp suất quy về mực biển.
+- Khi so sánh hai trạng thái, cho phép khóa chung thang màu.
+- Hướng và chuyển động của hạt phải đúng khi đổi phép chiếu.
+- Phân biệt hạt chỉ hướng gió với hạt được tích phân theo dòng để theo dõi quỹ đạo.
+- Phóng to hình ảnh không được hiểu là tăng độ phân giải vật lý.
+
+
+7. MÂY VÀ CHẤT LƯỢNG HÌNH ẢNH
+
+7.1. Chế độ phân tích
+
+- Ưu tiên khả năng đọc dữ liệu.
+- Mây và các trường khí tượng có thang màu, đơn vị và chú giải.
+- Dễ quan sát quan hệ giữa độ ẩm, nhiệt độ, mây và giáng thủy.
+
+7.2. Chế độ trực quan
+
+- Địa cầu có ánh sáng và lớp khí quyển.
+- Mây thể tích.
+- Điều chỉnh chất lượng theo mức phóng và tài nguyên máy.
+
+- Ray marching và volumetric shading có thể cùng tham gia vào bộ dựng mây.
+
+7.3. Điều chỉnh độ phủ mây
+
+- Chỉnh hình ảnh:
+  + Thay cách hiển thị, độ đậm hoặc mức chi tiết của mây.
+  + Không tự động làm thay đổi trạng thái vật lý.
+
+- Chỉnh vật lý:
+  + Tác động vào các đại lượng hoặc quá trình liên quan đến sự hình thành mây.
+  + Để mô hình tính phản ứng tương ứng.
+
+7.4. Phân biệt dữ liệu và chi tiết dựng hình
+
+- Những cấu trúc mô hình thực sự tính được.
+- Những chi tiết bổ sung để hình ảnh đẹp hơn.
+- Không dùng chi tiết dựng hình để ngụ ý độ phân giải vật lý cao hơn thực tế.
+
+
+8. CÔNG CỤ THÍ NGHIỆM VÀ PHÂN TÍCH
+
+8.1. Điều khiển thời gian
+
+- Chạy và tạm dừng.
+- Tiến thêm một khoảng thời gian được chọn.
+- Chạy nhanh theo khả năng tính toán.
+- Phát lại dữ liệu đã ghi.
+- Tua ngược dựa trên dữ liệu hoặc trạng thái đã lưu.
+
+8.2. So sánh A/B
+
+- Tạo hai nhánh từ cùng một trạng thái:
+  + Nhánh đối chứng.
+  + Nhánh có tác động.
+
+- So sánh cùng thời điểm mô phỏng.
+- Hiển thị bản đồ chênh lệch giữa hai nhánh.
+- Dùng để đánh giá tác động của thao tác, thay vì chỉ quan sát thời tiết tự biến đổi.
+
+8.3. Theo dõi điểm và vùng
+
+- Ghim điểm hoặc chọn vùng theo dõi.
+- Vẽ diễn biến nhiệt độ, áp suất, gió, độ ẩm hoặc độ mặn.
+- Theo dõi tâm và cường độ của một xoáy.
+- Phân biệt giá trị tại điểm, trung bình vùng và trung bình toàn cầu.
+
+8.4. Nhật ký và khả năng lặp lại
+
+- Lưu điều kiện khởi đầu.
+- Lưu phiên bản mô hình và cấu hình.
+- Lưu vị trí, thông số, thời điểm và thời lượng tác động.
+- Lưu hạt giống ngẫu nhiên nếu thí nghiệm sử dụng ngẫu nhiên.
+- Có thể chạy lại cùng một kịch bản.
+
+8.5. Lưu và xuất kết quả
+
+- Lưu/khôi phục trạng thái mô phỏng.
+- Tạo nhánh từ trạng thái đã lưu.
+- Xuất ảnh.
+- Xuất video.
+- Xuất dữ liệu và cấu hình thí nghiệm.
+
+
+9. PHẠM VI TRIỂN KHAI
+
+V1 — QUAN SÁT
+
+- Khí quyển toàn cầu.
+- Chọn tầng.
+- Bản đồ 2D và địa cầu.
+- Hiển thị gió, nhiệt độ, độ ẩm và áp suất.
+- Điều khiển thời gian và xem dữ liệu tại điểm.
+
+V2 — CAN THIỆP
+
+- Chọn vùng tác động.
+- Chỉnh nhiệt độ, hơi nước và gió.
+- Tạo nhiễu động.
+- Chọn áp dụng tức thời, tăng dần hoặc duy trì.
+- Nhật ký và khôi phục trạng thái.
+
+V3 — THÍ NGHIỆM
+
+- So sánh A/B.
+- Bản đồ chênh lệch.
+- Biểu đồ điểm/vùng.
+- Lưu và chạy lại kịch bản.
+- Xuất kết quả.
+
+V4 — ĐẠI DƯƠNG
+
+- Mô hình nhiệt muối giản lược.
+- Theo dõi nhiệt độ, độ mặn và trao đổi giữa các tầng/vùng.
+- Đánh giá và lựa chọn hướng đại dương động lực học ba chiều.
+- Ghép nối với khí quyển ở mức đã kiểm chứng.
+
+V5 — HÌNH ẢNH NÂNG CAO
+
+- Mây thể tích.
+- Hạt gió và dòng biển có chất lượng cao hơn.
+- Tối ưu chất lượng theo mức phóng và tài nguyên.
+
+
+10. NGUYÊN TẮC HIỆU NĂNG CHO MÁY HIỆN TẠI
+
+Cấu hình:
+- CPU: Intel Core i7-11800H.
+- RAM: 24 GB.
+- GPU: NVIDIA RTX 3050 Ti, VRAM 4 GB.
+
+- Chọn cấu hình dựa trên số đo thực tế.
+- Đo riêng thời gian tính mô hình, truyền dữ liệu, ghi dữ liệu và dựng hình.
+- Đánh giá CPU trước, sau đó so sánh GPU trên cùng cấu hình.
+
+Cho phép điều chỉnh riêng:
+- Độ phân giải và số tầng mô phỏng.
+- Tần suất cập nhật dữ liệu cho giao diện.
+- Tần suất ghi dữ liệu.
+- Số lượng hạt hiển thị.
+- Chất lượng mây và hiệu ứng.
+- Tốc độ phát lại.
+
+Ưu tiên giữ ý nghĩa của thí nghiệm khi giảm chất lượng hình ảnh hoặc điều chỉnh hiệu năng.
