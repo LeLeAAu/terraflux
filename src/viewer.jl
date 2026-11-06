@@ -1,5 +1,7 @@
 module TerraFluxViewer
 include("data.jl")
+include("globe.jl")
+using .TerraFluxGlobe
 using .TerraFluxData
 using GLMakie
 using GeoMakie
@@ -20,7 +22,8 @@ function build_viewer(d::WeatherData)
     header = GridLayout(fig[1, 1:2])
     Label(header[1, 1], "TERRAFLUX", fontsize=30, font=:bold, color=ACCENT, halign=:left, tellwidth=false)
     Label(header[2, 1], "PHÒNG QUAN SÁT KHÍ QUYỂN", color=MUTED, fontsize=13, halign=:left, tellwidth=false)
-    Label(header[1:2, 2], "V1 / PHÁT LẠI DỮ LIỆU", color=ACCENT, fontsize=13, halign=:right, tellwidth=false)
+    viewmenu = Menu(header[1, 2], options=[("Bản đồ 2D", :map), ("Địa cầu 3D", :globe)], default=1, width=235, halign=:right)
+    resetview = Button(header[2, 2], label="Đặt lại góc nhìn", width=235, halign=:right, buttoncolor=PANEL, labelcolor=INK)
     colsize!(header, 1, Relative(0.7))
     sidebar = GridLayout(fig[2, 1], width=285, tellheight=false)
     Label(sidebar[1, 1], "01   TRƯỜNG QUAN SÁT", color=MUTED, fontsize=12, halign=:left)
@@ -41,7 +44,8 @@ function build_viewer(d::WeatherData)
     rowgap!(sidebar, 18)
     maparea = GridLayout(fig[2, 2])
     title = Observable("")
-    ax = Axis(maparea[1, 1], title=title, xlabel="Kinh độ", ylabel="Vĩ độ", aspect=DataAspect(),
+    Label(maparea[1, 1:2], title, font=:bold, fontsize=16)
+    ax = Axis(maparea[2, 1], xlabel="Kinh độ", ylabel="Vĩ độ", aspect=DataAspect(),
         xticks=(-180:60:180), yticks=(-90:30:90))
     limits!(ax, -180, 180, -90, 90)
     field = Observable(:temp)
@@ -57,9 +61,67 @@ function build_viewer(d::WeatherData)
     marker = Observable(Point2f[])
     scatter!(ax, marker; markersize=14, color=ACCENT, strokecolor=:black, strokewidth=2)
     unittext = Observable("°C")
-    Colorbar(maparea[1, 2], heat, label=unittext, width=16)
-    Label(maparea[2, 1:2], "Bản đồ kinh–vĩ độ  •  Đường bờ: Natural Earth / GeoMakie  •  Cuộn: thu phóng  •  Chuột phải: di chuyển  •  Ctrl + bấm: đặt lại",
-        fontsize=11, color=MUTED)
+    Colorbar(maparea[2, 2], heat, label=unittext, width=16)
+    helptext = Observable("Bản đồ 2D • Cuộn: thu phóng • Chuột phải: di chuyển • Bấm trái: đọc giá trị")
+    Label(maparea[3, 1:2], helptext, fontsize=11, color=MUTED)
+    globe = LScene(maparea[2, 1]; show_axis=false)
+    cam3d!(globe.scene; center=false, fixed_axis=true, zoom_shift_lookat=false,
+        translation_button=false, reposition_button=false, up_key=false, down_key=false,
+        left_key=false, right_key=false, forward_key=false, backward_key=false,
+        increase_fov_key=false, decrease_fov_key=false, clipping_mode=:static, near=0.01, far=100.0)
+    # Keep the camera outside the globe, including after repeated wheel/keyboard zooms.
+    camera3d = cameracontrols(globe.scene)
+    correcting_camera = Ref(false)
+    on(camera3d.eyeposition) do eye
+        correcting_camera[] && return
+        distance = sqrt(sum(abs2, eye))
+        if !isfinite(distance) || distance < 1.2 || distance > 12
+            correcting_camera[] = true
+            try
+                direction = isfinite(distance) && distance > 0 ? eye/distance : Vec3d(sphere_point(105,20))
+                radius = isfinite(distance) ? clamp(distance,1.2,12) : 3.5
+                camera3d.eyeposition[] = direction*radius
+            finally
+                correcting_camera[] = false
+            end
+        end
+    end
+    points, faces = globe_geometry(d.lon, d.lat)
+    vertexcolors = Observable(globe_colors(frame(d, :temp, layer[], time[])))
+    mesh!(globe, Point3f.(points), [Makie.GeometryBasics.TriangleFace(f...) for f in faces];
+        color=vertexcolors, colormap=cmap, colorrange=limits, shading=NoShading,
+        nan_color=:transparent)
+    coastpoints = Makie.convert_arguments(Lines, GeoMakie.coastlines())[1]
+    lines!(globe, [Point3f(sphere_point(p[1],p[2];radius=1.003)) for p in coastpoints];
+        color=(:white,0.7), linewidth=0.8)
+    graticule = Point3f[]
+    for lat in -60:30:60
+        append!(graticule, [Point3f(sphere_point(lon,lat;radius=1.002)) for lon in -180:2:180])
+        push!(graticule, Point3f(NaN))
+    end
+    for lon in -180:30:150
+        append!(graticule, [Point3f(sphere_point(lon,lat;radius=1.002)) for lat in -90:2:90])
+        push!(graticule, Point3f(NaN))
+    end
+    lines!(globe, graticule; color=(:white,0.15), linewidth=0.6)
+    globe_marker = Observable(Point3f[])
+    scatter!(globe, globe_marker; color=ACCENT, markersize=14, strokecolor=:black, strokewidth=2)
+    reset_globe() = update_cam!(globe.scene, Vec3f(sphere_point(105,20;radius=3.5)), Vec3f(0), Vec3f(0,0,1))
+    reset_globe()
+    on(viewmenu.selection) do mode
+        visible = mode == :globe
+        ax.blockscene.visible[] = !visible
+        ax.scene.visible[] = !visible
+        globe.blockscene.visible[] = visible
+        globe.scene.visible[] = visible
+        helptext[] = visible ? "Địa cầu 3D • Kéo chuột trái: xoay • Cuộn: thu phóng • Bấm trái: đọc giá trị" :
+            "Bản đồ 2D • Cuộn: thu phóng • Chuột phải: di chuyển • Bấm trái: đọc giá trị"
+    end
+    on(resetview.clicks) do _
+        limits!(ax, -180, 180, -90, 90)
+        reset_globe()
+    end
+    notify(viewmenu.selection)
     timeline = GridLayout(fig[3, 1:2])
     clocktext = Observable("")
     Label(timeline[1, 1:4], clocktext, fontsize=17, font=:bold, halign=:left)
@@ -86,6 +148,7 @@ function build_viewer(d::WeatherData)
         f, k, t = field[], layer[], time[]
         a = frame(d, f, k, t)
         mapvalues[] = vcat(a, a[1:1, :])
+        vertexcolors[] = globe_colors(a)
         cmap[] = colormap_for(f)
         unittext[] = field_unit(f)
         if rescale || !lockscale.checked[]
@@ -115,6 +178,8 @@ function build_viewer(d::WeatherData)
     end
     on(selected) do _
         marker[] = selected[] === nothing ? Point2f[] : [Point2f(d.lon[selected[][1]], d.lat[selected[][2]])]
+        globe_marker[] = selected[] === nothing ? Point3f[] :
+            [Point3f(sphere_point(d.lon[selected[][1]], d.lat[selected[][2]]; radius=1.01))]
         refresh_point()
     end
     step(delta) = set_close_to!(slider, clamp(time[] + delta, 1, length(d.times)))
@@ -134,8 +199,26 @@ function build_viewer(d::WeatherData)
         end
         Consume(false)
     end
+    pressed = Ref{Union{Nothing,Tuple{Float64,Float64}}}(nothing)
+    on(events(globe.scene).mousebutton, priority=3) do event
+        if viewmenu.selection[] == :globe && event.button == Mouse.left
+            if event.action == Mouse.press && is_mouseinside(globe.scene)
+                pressed[] = Tuple(Float64.(events(fig).mouseposition[]))
+            elseif event.action == Mouse.release
+                start = pressed[]
+                pressed[] = nothing
+                pixel = events(fig).mouseposition[]
+                if start !== nothing && is_mouseinside(globe.scene) && sum((pixel[i]-start[i])^2 for i in 1:2) <= 16
+                    ray = Makie.ray_at_cursor(globe.scene)
+                    hit = sphere_hit(ray.origin, ray.direction)
+                    hit !== nothing && (selected[] = nearest_cell(d, hit...))
+                end
+            end
+        end
+        Consume(false)
+    end
     refresh()
-    (; fig, ax, fieldmenu, layermenu, lockscale, slider, selected, field, layer, time,
+    (; fig, ax, globe, viewmenu, resetview, vertexcolors, globe_marker, fieldmenu, layermenu, lockscale, slider, selected, field, layer, time,
         pointtext, mapvalues, limits, play, back, forward, playing)
 end
 
@@ -148,60 +231,11 @@ function advance_playback!(viewer)
     end
 end
 
-function launch(path; smoke=false, screenshot=nothing)
+function launch(path)
     GLMakie.activate!()
     data = load_weather(path)
     viewer = build_viewer(data)
     screen = display(viewer.fig)
-    if smoke
-        # Exercise the same observable callbacks as the controls, then render a frame.
-        for f in FIELDS
-            viewer.fieldmenu.i_selected[] = findfirst(==(f), FIELDS)
-            viewer.layermenu.i_selected[] = 1
-            set_close_to!(viewer.slider, length(viewer.slider.range[]))
-            viewer.selected[] = (1, 1)
-            @assert occursin(field_unit(f), viewer.pointtext[])
-            @assert viewer.mapvalues[][1:end-1, :] == frame(data, f, 1, length(data.times))
-        end
-        viewer.fieldmenu.i_selected[] = 1
-        viewer.layermenu.i_selected[] = length(data.layers)
-        viewer.lockscale.checked[] = false
-        set_close_to!(viewer.slider, min(20, length(data.times)))
-        viewer.play.clicks[] += 1
-        @assert viewer.playing[]
-        previous = viewer.time[]
-        advance_playback!(viewer)
-        @assert viewer.time[] == min(previous+1, length(data.times))
-        viewer.play.clicks[] += 1
-        @assert !viewer.playing[]
-        viewer.back.clicks[] += 1
-        @assert viewer.time[] == previous
-        viewer.forward.clicks[] += 1
-        @assert viewer.time[] == min(previous+1, length(data.times))
-        set_close_to!(viewer.slider, length(data.times))
-        viewer.playing[] = true
-        advance_playback!(viewer)
-        @assert !viewer.playing[]
-        viewer.lockscale.checked[] = true
-        set_close_to!(viewer.slider, min(20, length(data.times)))
-        before = viewer.limits[]
-        set_close_to!(viewer.slider, 1)
-        @assert viewer.limits[] == before
-        set_close_to!(viewer.slider, min(20, length(data.times)))
-        # Send real mouse events through the axis picking callback.
-        viewport = viewer.ax.scene.viewport[]
-        pixel = viewport.origin .+ viewport.widths .* (0.8, 0.62)
-        viewer.selected[] = nothing
-        events(viewer.fig).mouseposition[] = Tuple(pixel)
-        events(viewer.fig).mousebutton[] = Makie.MouseButtonEvent(Mouse.left, Mouse.press)
-        events(viewer.fig).mousebutton[] = Makie.MouseButtonEvent(Mouse.left, Mouse.release)
-        @assert viewer.selected[] !== nothing
-        @assert viewer.selected[] == nearest_cell(data, 108, 21.6)
-        screenshot !== nothing && save(screenshot, viewer.fig)
-        close(screen)
-        println("VIEWER_SMOKE_PASSED")
-        return viewer
-    end
     @async begin
         while isopen(screen)
             sleep(0.5)

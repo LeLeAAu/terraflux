@@ -64,3 +64,37 @@ end
         @test frame(d,:wind,8,41)[1,1] ≈ hypot(ds["u"][49,48,8,41],ds["v"][49,48,8,41])
     end
 end
+
+include(joinpath(@__DIR__, "..", "src", "globe.jl"))
+using .TerraFluxGlobe
+@testset "Globe coordinates, cells and front-side picking" begin
+    for (lon,lat) in ((0.,0.),(105.,20.),(-179.,-45.),(179.,60.),(-90.,0.))
+        point = sphere_point(lon,lat)
+        @test sum(abs2,point) ≈ 1
+        actual = lonlat_from_point(point)
+        @test actual[1] ≈ lon atol=1e-10
+        @test actual[2] ≈ lat atol=1e-10
+        eye = 3 .* point
+        hit = sphere_hit(eye, -1 .* point)
+        @test hit[1] ≈ lon atol=1e-10
+        @test hit[2] ≈ lat atol=1e-10
+    end
+    @test sphere_hit((3.,0.,0.),(0.,1.,0.)) === nothing
+    @test sphere_hit((3.,0.,0.),(1.,0.,0.)) === nothing
+    @test sphere_hit((3.,0.,0.),(0.,0.,0.)) === nothing
+    @test_throws ArgumentError lonlat_from_point((0.,0.,0.))
+    points,faces = globe_geometry([-180.,-90.,0.,90.],[-45.,45.])
+    @test length(points) == 4*4*2
+    @test length(faces) == 2*4*2
+    @test all(p -> sum(abs2,p) ≈ 1, points)
+    @test points[1][3] ≈ -1
+    @test points[end][3] ≈ 1
+    # Last longitude cell meets the first without a seam gap.
+    @test all(isapprox.(points[4],points[15]; atol=1e-12))
+    values = Float32[1 5; 2 6; 3 7; 4 8]
+    colors = globe_colors(values)
+    @test length(colors) == length(points)
+    for cell in 1:8
+        @test colors[4cell-3:4cell] == fill(values[cell],4)
+    end
+end

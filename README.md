@@ -29,6 +29,18 @@ julia --project=. viewer.jl --setup
 julia --project=. viewer.jl /path/to/output.nc
 ```
 
+## Địa cầu 3D
+
+Chọn **Địa cầu 3D** trong menu ở góc trên bên phải; chọn **Bản đồ 2D** để quay lại. Hai chế độ dùng chung trường, tầng, thời gian, điểm theo dõi và thang màu.
+
+- Giữ/kéo chuột trái để xoay, cuộn chuột để thu/phóng. Camera luôn ở ngoài mặt cầu.
+- Bấm rồi thả tại chỗ trên địa cầu để đọc ô lưới gần nhất ở mặt đang nhìn. Kéo để xoay hoặc bấm vào khoảng trống không đổi điểm theo dõi.
+- Nút **Đặt lại góc nhìn** đưa địa cầu về hướng Đông Nam Á; ở bản đồ 2D nút này khôi phục phạm vi toàn cầu.
+- Các ô lưới được tô cùng giá trị với bản đồ 2D, không làm mịn màu để tạo thêm chi tiết vật lý. Hai cực dùng giá trị của hàng lưới gần nhất. Mặt cầu chỉ là cách trình bày tầng đang chọn, không biểu diễn độ cao thật của tầng sigma.
+- Đường bờ lấy từ Natural Earth; các đường kinh/vĩ tuyến giúp định hướng. Không cần tải thêm dữ liệu địa cầu.
+
+![Chế độ địa cầu 3D](docs/globe.png)
+
 ## Sử dụng
 
 - **Trường quan sát:** nhiệt độ (°C), tốc độ gió hoặc từng thành phần gió (m/s), độ ẩm riêng (g/kg), áp suất quy về mực biển (hPa).
@@ -43,12 +55,13 @@ Phần bản đồ dùng kinh độ −180…180°, vĩ độ −90…90°, đư
 ## Cấu trúc
 
 - `src/data.jl`: đọc/kiểm tra NetCDF, chuẩn hóa tọa độ và đơn vị, chọn trường/tầng/thời gian.
-- `src/viewer.jl`: giao diện GLMakie, các điều khiển và phát lại.
+- `src/viewer.jl`: giao diện GLMakie, bản đồ/địa cầu, các điều khiển và phát lại.
+- `src/globe.jl`: hình học từng ô địa cầu, chuyển tọa độ và chọn mặt cầu bằng tia nhìn.
 - `viewer.jl`: điểm khởi chạy, nhận đường dẫn dữ liệu.
 - `main.jl`, `check_model.jl`: mô phỏng và kiểm tra trạng thái hiện có.
 - `note1.txt`: mục tiêu và lộ trình phát triển.
 
-Địa cầu 3D, chạy mô phỏng trực tiếp, chỉnh trạng thái và so sánh A/B là các mốc tiếp theo; chưa có trong bản này.
+Chạy mô phỏng trực tiếp, chỉnh trạng thái và so sánh A/B là các mốc tiếp theo; chưa có trong bản này.
 
 ## Kiểm tra
 
@@ -58,7 +71,7 @@ Kiểm thử tọa độ, chuyển đổi đơn vị, chọn điểm, thang màu
 julia --project=. test/runtests.jl
 ```
 
-Kiểm thử giao diện (cần màn hình và OpenGL; trên Linux có thể dùng Xvfb):
+Kiểm thử giao diện 2D/3D: đổi trường/tầng/thời gian, chọn điểm, xoay, thu/phóng, đặt lại camera (cần màn hình và OpenGL; trên Linux có thể dùng Xvfb):
 
 ```sh
 julia --project=. test/viewer_smoke.jl
