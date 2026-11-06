@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Keep Windows launchers compatible with cmd.exe after checkout.
+*.bat text eol=crlf
