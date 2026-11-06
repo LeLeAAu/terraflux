@@ -3,6 +3,9 @@ include("data.jl")
 include("globe.jl")
 include("live.jl")
 include("storms.jl")
+include("ui_scope.jl")
+using .TerraFluxUIScope
+include("storm_icons.jl")
 include("tracker.jl")
 using .TerraFluxTracker
 using .TerraFluxLive
@@ -20,7 +23,8 @@ const MUTED = colorant"#a6b7c8"
 const ACCENT = colorant"#66ded0"
 colormap_for(f) = f in (:u, :v) ? :balance : f == :humid ? :haline : f == :mslp ? :viridis : f == :wind ? :speed : :thermal
 
-function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessions"))
+function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessions"),
+        icon_style_path=joinpath(@__DIR__,"..","assets","storm_tracker","style.toml"))
     set_theme!(theme_dark(); fontsize=15, backgroundcolor=BG, textcolor=INK,
         Axis=(backgroundcolor=PANEL, xgridcolor=(:white, 0.08), ygridcolor=(:white, 0.08)))
     fig = Figure(size=(1440, 860), figure_padding=26)
@@ -49,6 +53,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     gridtext = Observable("Lưới đầu ra: $(length(d.lon)) × $(length(d.lat))\n$(length(d.layers)) tầng · $(length(d.times)) thời điểm\nPhóng to không tăng độ phân giải.")
     push!(physical_widgets, Label(sidebar[10, 1], gridtext, fontsize=12, color=MUTED, halign=:left, justification=:left))
     append!(physical_widgets,[fieldmenu,layermenu,lockscale])
+    scope_widget_inputs!(physical_widgets)
     rowgap!(sidebar, 12)
     maparea = GridLayout(fig[2, 2])
     title = Observable("")
@@ -145,7 +150,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     colgap!(fig.layout, 28)
     rowgap!(fig.layout, 24)
     playing = Observable(false)
-    tracker = build_tracker(fig[2,1],maparea[2,1:2],d.times[time[]];
+    tracker = build_tracker(fig[2,1],maparea[2,1:2],d.times[time[]];icon_style_path,
         on_physical=(location,as_globe) -> begin
             selected[] = nearest_cell(d,location...)
             viewmenu.i_selected[] = as_globe ? 2 : 1
@@ -360,8 +365,9 @@ function launch(path)
     data = load_weather(path)
     viewer = build_viewer(data)
     screen = display(viewer.fig)
+    # Data polling/playback keep their original cadence regardless of icon style FPS.
     ticker = @async begin
-        tick = 0
+        tick=0
         while isopen(screen)
             sleep(0.25)
             isopen(screen) || break
@@ -370,9 +376,16 @@ function launch(path)
             catch err
                 viewer.livestatus[] = "Không đọc được phiên: " * first(sprint(showerror,err),180)
             end
-            viewer.tracker.animate!(0.08tick)
-            tick += 1
+            tick+=1
             iseven(tick) && advance_playback!(viewer)
+        end
+    end
+    animator = @async begin
+        started=time_ns()
+        while isopen(screen)
+            sleep(1/viewer.tracker.style.refresh_fps)
+            isopen(screen) || break
+            viewer.tracker.animate!(Float64(time_ns()-started)/1e9)
         end
     end
     try
@@ -380,6 +393,7 @@ function launch(path)
     finally
         viewer.session[] !== nothing && stop_session!(viewer.session[])
         wait(ticker)
+        wait(animator)
     end
     viewer
 end

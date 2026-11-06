@@ -1,11 +1,16 @@
 module TerraFluxTracker
 using ..TerraFluxStorms
+using ..TerraFluxUIScope
+using ..TerraFluxStormIcons
 using GLMakie, GeoMakie, Dates, Printf
 export build_tracker
 
 function build_tracker(sideposition, mapposition, timestamp; on_physical, on_start,
-        scenario_path=joinpath(@__DIR__,"..","scenarios","demo_storms.toml"))
+        scenario_path=joinpath(@__DIR__,"..","scenarios","demo_storms.toml"),
+        icon_style_path=joinpath(@__DIR__,"..","assets","storm_tracker","style.toml"))
     scenario = load_scenario(scenario_path)
+    style = load_icon_style(icon_style_path)
+    elapsed = Ref(0.0)
     active = Observable(false)
     clock = Observable(timestamp)
     panel = GridLayout(sideposition;width=285,tellheight=false)
@@ -44,14 +49,7 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
     end
     on(region.selection) do _; reset!(); end
     reset!()
-    # Fixed screen-size spiral silhouette: the icon is not a physical wind-radius footprint.
-    shape = Point2f[]
-    for angle in range(0,2pi;length=181)[1:end-1]
-        radius = 0.62+0.38cos(3angle)
-        theta = angle+1.6(1-radius)
-        push!(shape,Point2f(0.5radius*cos(theta),0.5radius*sin(theta)))
-    end
-    spiral = Makie.GeometryBasics.Polygon(shape)
+    spiral = procedural_marker(style)
     handles = Dict{String,Any}()
     categories = (:L,:D,:S,:C1,:C2,:C3,:C4,:C5,:SD,:SS,:EX,:RL)
     for system in scenario.systems
@@ -61,12 +59,18 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
         rotation = Observable(0f0)
         symbol = Observable("L")
         name = Observable(system.id)
-        size = Observable(64f0)
-        glowcolor = lift(c -> RGBAf(c.r,c.g,c.b,0.16),color)
-        scatter!(ax,position;color=glowcolor,markersize=74,visible)
-        scatter!(ax,position;marker=spiral,color,markersize=size,rotation=rotation,visible)
-        scatter!(ax,position;color,markersize=31,strokecolor="#dcecf5",strokewidth=1.3,visible)
-        text!(ax,position;text=symbol,align=(:center,:center),fontsize=18,font=:bold,color="#091320",visible)
+        size = Observable(style.size)
+        has_sprite = Observable(false)
+        sprite_image = Observable(fill(RGBAf(0,0,0,0),1,1))
+        procedural_visible = lift((v,s) -> v && !s,visible,has_sprite)
+        sprite_visible = lift((v,s) -> v && s,visible,has_sprite)
+        symbol_visible = lift((v,s) -> v && (!s || style.show_symbol_on_sprite),visible,has_sprite)
+        glowcolor = lift(c -> RGBAf(c.r,c.g,c.b,style.glow_opacity),color)
+        scatter!(ax,position;color=glowcolor,markersize=lift(s -> s*style.glow_scale,size),visible)
+        scatter!(ax,position;marker=spiral,color,markersize=size,rotation=rotation,visible=procedural_visible)
+        scatter!(ax,position;marker=sprite_image,color=:white,markersize=size,rotation=rotation,visible=sprite_visible)
+        scatter!(ax,position;color,markersize=31,strokecolor="#dcecf5",strokewidth=1.3,visible=procedural_visible)
+        text!(ax,position;text=symbol,align=(:center,:center),fontsize=18,font=:bold,color="#091320",visible=symbol_visible)
         text!(ax,position;text=name,offset=(34,8),fontsize=15,font=:bold,color=:white,
             strokecolor=(:black,0.8),strokewidth=1.2,visible)
         paths = Dict{Symbol,Observable{Vector{Point2f}}}()
@@ -78,7 +82,7 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
         end
         ending = Observable(Point2f[])
         scatter!(ax,ending;marker=:xcross,color="#b6bac4",markersize=11,visible=trails.checked)
-        handles[system.id] = (;position,visible,color,rotation,symbol,name,size,paths,ending)
+        handles[system.id] = (;position,visible,color,rotation,symbol,name,size,paths,ending,has_sprite,sprite_image)
     end
     # Compact legend over the map. The full scheme and provenance are documented in the repo.
     legendpoints = Point2f[(0.015,0.985),(0.30,0.985),(0.30,0.64),(0.015,0.64)]
@@ -104,7 +108,13 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
                 crowded = selected_state !== nothing && system.id != selected_id &&
                     hypot(state.lon-selected_state.lon,state.lat-selected_state.lat) < 6
                 h.name[] = crowded ? system.id : system.id*"\n"*system.name
-                h.size[] = system.id == selected_id ? 70f0 : 58f0
+                h.size[] = system.id == selected_id ? style.selected_size : style.size
+                sprite=icon_sprite(style,category)
+                h.has_sprite[] = sprite !== nothing
+                if sprite !== nothing
+                    h.sprite_image[] = icon_frame(sprite,elapsed[];reduced=reduced.checked[])
+                end
+                h.rotation[] = icon_rotation(style,state.lat,elapsed[];reduced=reduced.checked[],sprite)
             end
             segments = history_segments(system,now)
             for category in categories
@@ -173,17 +183,26 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
         ax.scene.visible[] = enabled
         for widget in widgets; widget.blockscene.visible[] = enabled; end
     end
-    function animate!(phase)
+    function animate!(seconds)
+        elapsed[] = seconds
         active[] || return
         for system in scenario.systems
             state = storm_state(system,clock[])
             state === nothing && continue
-            handles[system.id].rotation[] = reduced.checked[] ? 0f0 : Float32((state.lat >= 0 ? 1 : -1)*phase)
+            handle=handles[system.id]
+            sprite=icon_sprite(style,storm_class(state.kind,state.wind_knots))
+            rotation=icon_rotation(style,state.lat,seconds;reduced=reduced.checked[],sprite)
+            handle.rotation[] != rotation && (handle.rotation[] = rotation)
+            if sprite !== nothing
+                image=icon_frame(sprite,seconds;reduced=reduced.checked[])
+                handle.sprite_image[] !== image && (handle.sprite_image[] = image)
+            end
         end
     end
+    scope_widget_inputs!(widgets)
     refresh!()
     set_active!(false)
-    (;ax,active,clock,scenario,handles,systemmenu,unitmenu,trails,reduced,region,start,card,summary,
+    (;ax,active,clock,scenario,style,handles,systemmenu,unitmenu,trails,reduced,region,start,card,summary,
         physical,globe,refresh!,set_active!,reset!,animate!)
 end
 end

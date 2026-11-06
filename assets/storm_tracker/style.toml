@@ -1,0 +1,33 @@
+# Edit this file, then restart TerraFlux. No physics or scenario changes required.
+[appearance]
+size = 58.0
+selected_size = 70.0
+glow_opacity = 0.16
+glow_scale = 1.12
+show_symbol_on_sprite = false
+
+[procedural]
+# Fallback shape when no PNG is configured. Advanced drawing lives in src/storm_icons.jl.
+arms = 3
+inner_radius = 0.24
+twist = 1.6
+
+[animation]
+# Decorative only: radians/real second, not physical wind speed.
+spin_radians_per_second = 0.32
+refresh_fps = 30.0
+
+[sprites.default]
+# A transparent PNG, or a horizontal strip containing N equal-width frames.
+# Empty file = use procedural fallback. Paths are relative to this file.
+file = ""
+frames = 1
+fps = 8.0
+rotate = false
+
+# Optional per-category override. Supported keys: L, D, SD, S, SS, EX, RL, C1..C5.
+# [sprites.C3]
+# file = "my_category3_strip.png"
+# frames = 8
+# fps = 10.0
+# rotate = false

@@ -24,3 +24,10 @@ implementation ordering in the backlog is a recommendation, not a new user manda
 Storm Tracker currently reads explicitly labeled illustrative scenarios from
 `scenarios/demo_storms.toml`; it does not detect storms from SpeedyWeather output.
 See `scenarios/README.md` before changing its schema or classification rules.
+
+Mode-specific widgets must use `src/ui_scope.jl` input scoping. Hiding a Makie
+Menu scene alone does not prevent its invisible hit area receiving mouse input.
+Close open dropdowns on mode changes and test actual pointer interactions.
+Storm icon art/animation settings live in `assets/storm_tracker/style.toml`;
+procedural drawing and PNG frame selection live in `src/storm_icons.jl`. Keep
+these rendering settings independent of simulation state and playback speed.

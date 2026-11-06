@@ -50,6 +50,16 @@ nổi đầy đủ, nhãn tránh chồng tổng quát, camera bám, chọn đo�
 mờ tan mượt, icon trực tiếp trên 3D, các thống kê mùa và xuất video. Phần dưới giữ
 nguyên toàn bộ yêu cầu chi tiết để không bỏ sót khi hoàn thiện.
 
+## Bổ sung sau phản hồi sử dụng
+
+- [x] Cô lập đầu vào của widget theo chế độ; menu ẩn không nhận chuột/phím và
+  popup được đóng khi đổi chế độ. Kiểm tra bằng bấm, gõ tìm kiếm và chọn mục thật
+  trong `test/menu_scopes.jl`, cùng hồi quy trên toàn bộ viewer.
+- [x] Chỗ tùy biến hình/animation: `assets/storm_tracker/style.toml` và hướng dẫn
+  cùng thư mục; hỗ trợ PNG trong suốt/dải PNG ngang nhiều khung, dùng chung hoặc
+  riêng từng cấp. Hình procedural dự phòng và logic frame/xoay tách ở
+  `src/storm_icons.jl`. Có kiểm tra cấu hình và pixel render của PNG.
+
 ## Danh sách cần làm theo tài liệu nguồn
 
 ### A. Chế độ và ngôn ngữ hình ảnh — mục 1, 2, 14

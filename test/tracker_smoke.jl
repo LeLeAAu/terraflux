@@ -12,6 +12,28 @@ try
     @testset "Storm Tracker scenario UI and shared clock" begin
         tracker=viewer.tracker
         viewer.viewmenu.i_selected[]=3
+        # Reproduce the user's overlapping dropdowns with real pointer clicks.
+        function click_menu(menu)
+            area=menu.layoutobservables.computedbbox[]
+            events(viewer.fig).mouseposition[]=Tuple(area.origin .+ area.widths ./ 2)
+            events(viewer.fig).mousebutton[]=Makie.MouseButtonEvent(Mouse.left,Mouse.press)
+            events(viewer.fig).mousebutton[]=Makie.MouseButtonEvent(Mouse.left,Mouse.release)
+        end
+        for menu in (tracker.systemmenu,tracker.unitmenu,tracker.region)
+            click_menu(menu)
+            @test menu.is_open[]
+            @test !viewer.fieldmenu.is_open[]
+            @test !viewer.layermenu.is_open[]
+            menu.is_open[]=false
+        end
+        click_menu(tracker.systemmenu)
+        viewer.viewmenu.i_selected[]=1
+        @test !tracker.systemmenu.is_open[]
+        click_menu(viewer.fieldmenu)
+        @test viewer.fieldmenu.is_open[]
+        @test !tracker.systemmenu.is_open[]
+        viewer.viewmenu.i_selected[]=3
+        @test !viewer.fieldmenu.is_open[]
         @test tracker.active[]
         @test tracker.ax.scene.visible[]
         @test !viewer.ax.scene.visible[]
@@ -30,7 +52,7 @@ try
         @test occursin("mph",tracker.card[])
         @test occursin("115.1",tracker.card[])
         tracker.animate!(0.7)
-        @test tracker.handles["DEMO-01"].rotation[] ≈ 0.7f0
+        @test tracker.handles["DEMO-01"].rotation[] ≈ 0.224f0
         @test viewer.time[] == 13
         tracker.reduced.checked[]=true
         tracker.animate!(1.2)
@@ -74,7 +96,10 @@ try
         @test data.fields[:temp] == original
         set_close_to!(viewer.slider,13)
         tracker.systemmenu.i_selected[]=1
-        if !isempty(ARGS); save(abspath(first(ARGS)),viewer.fig); end
+        if !isempty(ARGS)
+            click_menu(tracker.systemmenu)
+            save(abspath(first(ARGS)),viewer.fig)
+        end
     end
     println("TRACKER_SMOKE_PASSED")
 finally

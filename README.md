@@ -47,6 +47,10 @@ Chọn **Storm Tracker** trong menu góc trên phải. Với dữ liệu mẫu, 
 
 Ngày của kịch bản mẫu là 2000-01-01…2000-01-08 để trùng trục thời gian dữ liệu mẫu. Nếu mở tệp thời gian khác, kịch bản không tự dịch sang năm mới và có thể không có hệ thống trong khoảng đang xem. Hướng dẫn cấu trúc dữ liệu ở [`scenarios/README.md`](scenarios/README.md); yêu cầu đầy đủ và việc còn chờ ở [`docs/UI_BACKLOG.md`](docs/UI_BACKLOG.md).
 
+### Thay icon/animation bão
+
+Sửa **[`assets/storm_tracker/style.toml`](assets/storm_tracker/style.toml)** rồi mở lại app. Có thể chỉnh kích thước, quầng sáng, số cánh/hình dạng dự phòng, tốc độ xoay; hoặc dùng PNG trong suốt và dải PNG nhiều khung, dùng chung hoặc riêng từng cấp. Hướng dẫn và ví dụ tại **[`assets/storm_tracker/README.md`](assets/storm_tracker/README.md)**. Điểm mở rộng bằng Julia nằm ở `src/storm_icons.jl`.
+
 ## Chạy mô phỏng từ giao diện
 
 Dải **MÔ PHỎNG MỚI** nằm ngay phía trên phần phát lại:
@@ -132,4 +136,13 @@ Kiểm tra schema/phân loại/thời gian/quỹ đạo của kịch bản, và 
 julia --project=. test/storms.jl
 # Cần màn hình/OpenGL:
 julia --project=. test/tracker_smoke.jl
+```
+
+Kiểm tra menu bị ẩn không nhận chuột/phím và phần cấu hình/PNG animation:
+
+```sh
+# Các lệnh cần màn hình/OpenGL trừ icon_style.jl:
+julia --project=. test/menu_scopes.jl
+julia --project=. test/icon_style.jl
+julia --project=. test/icon_render.jl
 ```
