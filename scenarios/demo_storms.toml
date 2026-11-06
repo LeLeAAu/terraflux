@@ -1,0 +1,105 @@
+# Manually declared UI test scenario. No values are detections or model output.
+[scenario]
+title = "WPAC · Kịch bản minh họa A/B"
+provenance = "illustrative_scenario"
+wind_average_minutes = 1
+wind_height_m = 10
+
+[[systems]]
+id = "DEMO-01"
+name = "MINH HỌA A"
+[[systems.samples]]
+time = "2000-01-01T00:00:00"
+lon = 142.0
+lat = 10.0
+wind_knots = 20.0
+kind = "disturbance"
+[[systems.samples]]
+time = "2000-01-02T00:00:00"
+lon = 138.0
+lat = 12.0
+wind_knots = 40.0
+pressure_hpa = 1000.0
+kind = "tropical"
+[[systems.samples]]
+time = "2000-01-03T00:00:00"
+lon = 134.0
+lat = 14.0
+wind_knots = 70.0
+pressure_hpa = 985.0
+kind = "tropical"
+[[systems.samples]]
+time = "2000-01-04T00:00:00"
+lon = 130.0
+lat = 16.0
+wind_knots = 100.0
+pressure_hpa = 960.0
+kind = "tropical"
+[[systems.samples]]
+time = "2000-01-05T00:00:00"
+lon = 126.0
+lat = 18.0
+wind_knots = 120.0
+pressure_hpa = 940.0
+kind = "tropical"
+[[systems.samples]]
+time = "2000-01-06T00:00:00"
+lon = 121.0
+lat = 20.0
+wind_knots = 55.0
+pressure_hpa = 995.0
+kind = "tropical"
+[[systems.samples]]
+time = "2000-01-07T00:00:00"
+lon = 118.0
+lat = 22.0
+wind_knots = 20.0
+kind = "remnant"
+[[systems.samples]]
+time = "2000-01-08T00:00:00"
+lon = 116.0
+lat = 24.0
+wind_knots = 10.0
+kind = "remnant"
+active = false
+
+[[systems]]
+id = "DEMO-02"
+name = "MINH HỌA B"
+[[systems.samples]]
+time = "2000-01-03T00:00:00"
+lon = 154.0
+lat = 18.0
+wind_knots = 25.0
+kind = "subtropical"
+[[systems.samples]]
+time = "2000-01-04T00:00:00"
+lon = 150.0
+lat = 21.0
+wind_knots = 40.0
+kind = "subtropical"
+[[systems.samples]]
+time = "2000-01-05T00:00:00"
+lon = 146.0
+lat = 25.0
+wind_knots = 85.0
+kind = "tropical"
+[[systems.samples]]
+time = "2000-01-06T00:00:00"
+lon = 149.0
+lat = 28.0
+wind_knots = 60.0
+kind = "extratropical"
+[[systems.samples]]
+time = "2000-01-07T00:00:00"
+lon = 152.0
+lat = 31.0
+wind_knots = 25.0
+kind = "remnant"
+[[systems.samples]]
+time = "2000-01-08T00:00:00"
+lon = 155.0
+lat = 33.0
+wind_knots = 15.0
+kind = "remnant"
+active = false

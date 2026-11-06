@@ -3,9 +3,9 @@
 Nguồn yêu cầu: [`UI_note.txt`](../UI_note.txt), được người dùng bổ sung ở commit
 `c4660a2`. Lộ trình tổng thể vẫn theo [`note1.txt`](../note1.txt).
 
-Người dùng yêu cầu đọc và lưu các việc cần làm; **chưa yêu cầu triển khai các mục
-trong tệp UI ở lượt ghi nhớ này**. Tất cả checkbox bên dưới là việc còn chờ, không
-phải tính năng đã có. Giữ nguyên tệp nguồn để đối chiếu chi tiết.
+Người dùng đã yêu cầu tiếp tục triển khai sau lượt ghi nhớ. Mốc MVP bên dưới ghi
+những phần đã có; các checkbox gộp trong danh sách chi tiết vẫn để trống nếu chưa
+hoàn thành toàn bộ nội dung. Giữ nguyên tệp nguồn để đối chiếu chi tiết.
 
 ## Ghi nhận ảnh minh họa
 
@@ -22,6 +22,33 @@ Năm ảnh trong cuộc trò chuyện minh họa một giao diện animation the
 xi. Những chữ/số như NOKAEN, ADA, 01W, 91W, năm 2026, $5m, số người chết, ACE và
 ENSO trên ảnh không được tự đưa vào dữ liệu thật của TerraFlux. Các tệp ảnh chưa
 được lưu trong repo; bản ghi này giữ cách hiểu về chúng, không thay thế ảnh gốc.
+
+## MVP đã triển khai và kiểm chứng
+
+- [x] Schema TOML cho kịch bản được gắn nguồn rõ, ID duy nhất, mốc thời gian tăng,
+  loại hệ thống, gió 1 phút/10 m và áp suất tùy chọn; từ chối dữ liệu không hợp lệ.
+- [x] Chế độ Storm Tracker riêng, nền đất/đường bờ tối, nhãn địa danh tham chiếu,
+  chú giải ngắn, menu hệ thống và bảng thông tin. Đây chưa phải bố cục nổi/dải mùa
+  hoàn chỉnh theo ảnh.
+- [x] Biểu tượng cánh xoáy, lõi chữ/số và bảng màu đầy đủ L/EX/×/D/SD/S/SS/1–5;
+  kích thước đọc trên màn hình, quay định tính theo bán cầu và nút giảm hiệu ứng.
+- [x] Chọn bằng chuột/menu, đổi đơn vị gió, quỹ đạo chỉ tới mốc đang xem, màu theo
+  cấp đầu đoạn, nét chấm L/nét đứt tàn dư, giữ lịch sử và dấu kết thúc.
+- [x] Đồng bộ đồng hồ với thanh phát lại; mở cùng vị trí/thời gian trên trường vật
+  lý hoặc địa cầu. Dữ liệu kịch bản không sửa dữ liệu khí quyển; biểu tượng chưa
+  được phủ trực tiếp trên địa cầu.
+- [x] Nguồn kịch bản hiển thị rõ; áp suất thiếu ghi thiếu; không dựng số ACE/ENSO/
+  impacts hay suy diễn nhận diện vật lý từ biểu tượng.
+
+Bằng chứng: `test/storms.jl` kiểm tra schema, ngưỡng, đơn vị, nội suy, lịch sử và
+đường đổi ngày; `test/tracker_smoke.jl` kiểm tra giao diện, chọn bằng sự kiện chuột,
+đồng hồ, chuyển 2D/3D và giữ nguyên dữ liệu mô hình. Các bộ kiểm tra viewer/live
+hiện có tiếp tục được dùng để kiểm tra hồi quy.
+
+Còn chờ: nhận diện/theo dõi thực từ mô hình, các nguồn nhập ngoài, bố cục bảng
+nổi đầy đủ, nhãn tránh chồng tổng quát, camera bám, chọn đoạn lịch sử, chuyển màu/
+mờ tan mượt, icon trực tiếp trên 3D, các thống kê mùa và xuất video. Phần dưới giữ
+nguyên toàn bộ yêu cầu chi tiết để không bỏ sót khi hoàn thiện.
 
 ## Danh sách cần làm theo tài liệu nguồn
 
@@ -124,8 +151,8 @@ ENSO trên ảnh không được tự đưa vào dữ liệu thật của TerraF
 
 ## Phụ thuộc cần giải quyết trước khi coi là kết quả vật lý
 
-- Hiện TerraFlux có trường khí quyển T32/8 tầng, xem 2D/3D và chạy phiên mới;
-  chưa có bộ nhận diện/theo dõi bão hoặc mô hình tác động.
+- Hiện TerraFlux có trường khí quyển T32/8 tầng, xem 2D/3D, chạy phiên mới và
+  Storm Tracker dùng kịch bản minh họa; chưa có nhận diện bão hay mô hình tác động.
 - Cần định nghĩa schema hệ thống + mẫu trạng thái theo thời gian + provenance
   (nhận diện mô hình / nhập ngoài / kịch bản), ID, quy tắc liên kết quỹ đạo.
 - Cần xác định gió dùng phân loại là đại lượng nào, tại tầng/độ cao nào và lấy

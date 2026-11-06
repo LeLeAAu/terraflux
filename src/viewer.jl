@@ -2,6 +2,9 @@ module TerraFluxViewer
 include("data.jl")
 include("globe.jl")
 include("live.jl")
+include("storms.jl")
+include("tracker.jl")
+using .TerraFluxTracker
 using .TerraFluxLive
 using .TerraFluxGlobe
 using .TerraFluxData
@@ -24,26 +27,28 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     header = GridLayout(fig[1, 1:2])
     Label(header[1, 1], "TERRAFLUX", fontsize=30, font=:bold, color=ACCENT, halign=:left, tellwidth=false)
     Label(header[2, 1], "PHÒNG QUAN SÁT KHÍ QUYỂN", color=MUTED, fontsize=13, halign=:left, tellwidth=false)
-    viewmenu = Menu(header[1, 2], options=[("Bản đồ 2D", :map), ("Địa cầu 3D", :globe)], default=1, width=235, halign=:right)
+    viewmenu = Menu(header[1, 2], options=[("Bản đồ 2D", :map), ("Địa cầu 3D", :globe), ("Storm Tracker", :tracker)], default=1, width=235, halign=:right)
     resetview = Button(header[2, 2], label="Đặt lại góc nhìn", width=235, halign=:right, buttoncolor=PANEL, labelcolor=INK)
     colsize!(header, 1, Relative(0.7))
+    physical_widgets = Any[]
     sidebar = GridLayout(fig[2, 1], width=285, tellheight=false)
-    Label(sidebar[1, 1], "01   TRƯỜNG QUAN SÁT", color=MUTED, fontsize=12, halign=:left)
+    push!(physical_widgets, Label(sidebar[1, 1], "01   TRƯỜNG QUAN SÁT", color=MUTED, fontsize=12, halign=:left))
     fieldmenu = Menu(sidebar[2, 1], options=[(field_label(f), f) for f in FIELDS], default=1, width=280)
-    Label(sidebar[3, 1], "02   TẦNG KHÍ QUYỂN", color=MUTED, fontsize=12, halign=:left)
+    push!(physical_widgets, Label(sidebar[3, 1], "02   TẦNG KHÍ QUYỂN", color=MUTED, fontsize=12, halign=:left))
     layermenu = Menu(sidebar[4, 1], options=[(layer_label(d, k), k) for k in eachindex(d.layers)],
         default=length(d.layers), width=280)
-    Label(sidebar[5, 1], "σ gần 1: gần bề mặt\nσ gần 0: tầng cao\nKhông phải độ cao cố định.", color=MUTED, fontsize=13, halign=:left, justification=:left)
+    push!(physical_widgets, Label(sidebar[5, 1], "σ gần 1: gần bề mặt\nσ gần 0: tầng cao\nKhông phải độ cao cố định.", color=MUTED, fontsize=13, halign=:left, justification=:left))
     lockrow = GridLayout(sidebar[6, 1])
     lockscale = Checkbox(lockrow[1, 1], checked=true)
-    Label(lockrow[1, 2], "Giữ thang màu theo thời gian", fontsize=13, halign=:left)
-    Label(sidebar[7, 1], "03   ĐIỂM THEO DÕI", color=MUTED, fontsize=12, halign=:left)
+    push!(physical_widgets, Label(lockrow[1, 2], "Giữ thang màu theo thời gian", fontsize=13, halign=:left))
+    push!(physical_widgets, Label(sidebar[7, 1], "03   ĐIỂM THEO DÕI", color=MUTED, fontsize=12, halign=:left))
     pointtext = Observable("Bấm vào bản đồ để chọn điểm.\nGiá trị tại ô lưới gần nhất.")
-    Label(sidebar[8, 1], pointtext, fontsize=14, halign=:left, justification=:left)
+    push!(physical_widgets, Label(sidebar[8, 1], pointtext, fontsize=14, halign=:left, justification=:left))
     stattext = Observable("")
-    Label(sidebar[9, 1], stattext, fontsize=13, color=MUTED, halign=:left, justification=:left)
+    push!(physical_widgets, Label(sidebar[9, 1], stattext, fontsize=13, color=MUTED, halign=:left, justification=:left))
     gridtext = Observable("Lưới đầu ra: $(length(d.lon)) × $(length(d.lat))\n$(length(d.layers)) tầng · $(length(d.times)) thời điểm\nPhóng to không tăng độ phân giải.")
-    Label(sidebar[10, 1], gridtext, fontsize=12, color=MUTED, halign=:left, justification=:left)
+    push!(physical_widgets, Label(sidebar[10, 1], gridtext, fontsize=12, color=MUTED, halign=:left, justification=:left))
+    append!(physical_widgets,[fieldmenu,layermenu,lockscale])
     rowgap!(sidebar, 12)
     maparea = GridLayout(fig[2, 2])
     title = Observable("")
@@ -64,7 +69,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     marker = Observable(Point2f[])
     scatter!(ax, marker; markersize=14, color=ACCENT, strokecolor=:black, strokewidth=2)
     unittext = Observable("°C")
-    Colorbar(maparea[2, 2], heat, label=unittext, width=16)
+    colorbar = Colorbar(maparea[2, 2], heat, label=unittext, width=16)
     helptext = Observable("Bản đồ 2D • Cuộn: thu phóng • Chuột phải: di chuyển • Bấm trái: đọc giá trị")
     Label(maparea[3, 1:2], helptext, fontsize=11, color=MUTED)
     globe = LScene(maparea[2, 1]; show_axis=false)
@@ -111,20 +116,11 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     scatter!(globe, globe_marker; color=ACCENT, markersize=14, strokecolor=:black, strokewidth=2)
     reset_globe() = update_cam!(globe.scene, Vec3f(sphere_point(105,20;radius=3.5)), Vec3f(0), Vec3f(0,0,1))
     reset_globe()
-    on(viewmenu.selection) do mode
-        visible = mode == :globe
-        ax.blockscene.visible[] = !visible
-        ax.scene.visible[] = !visible
-        globe.blockscene.visible[] = visible
-        globe.scene.visible[] = visible
-        helptext[] = visible ? "Địa cầu 3D • Kéo chuột trái: xoay • Cuộn: thu phóng • Bấm trái: đọc giá trị" :
-            "Bản đồ 2D • Cuộn: thu phóng • Chuột phải: di chuyển • Bấm trái: đọc giá trị"
-    end
     on(resetview.clicks) do _
         limits!(ax, -180, 180, -90, 90)
         reset_globe()
+        tracker.reset!()
     end
-    notify(viewmenu.selection)
     livepanel = GridLayout(fig[3, 1:2])
     livestatus = Observable("MÔ PHỎNG MỚI / T32 · 8 tầng · tối đa 10 ngày · mỗi bước 6 giờ")
     Label(livepanel[1,1:7],livestatus;fontsize=12,color=ACCENT,halign=:left,tellwidth=false)
@@ -149,6 +145,30 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     colgap!(fig.layout, 28)
     rowgap!(fig.layout, 24)
     playing = Observable(false)
+    tracker = build_tracker(fig[2,1],maparea[2,1:2],d.times[time[]];
+        on_physical=(location,as_globe) -> begin
+            selected[] = nearest_cell(d,location...)
+            viewmenu.i_selected[] = as_globe ? 2 : 1
+            if as_globe
+                update_cam!(globe.scene,Vec3f(sphere_point(location...;radius=3.5)),Vec3f(0),Vec3f(0,0,1))
+            end
+        end,
+        on_start=timestamp -> set_close_to!(slider,argmin(abs.(d.times .- timestamp))))
+    on(viewmenu.selection) do mode
+        is_globe = mode == :globe
+        is_tracker = mode == :tracker
+        ax.blockscene.visible[] = mode == :map
+        ax.scene.visible[] = mode == :map
+        globe.blockscene.visible[] = is_globe
+        globe.scene.visible[] = is_globe
+        colorbar.blockscene.visible[] = !is_tracker
+        for widget in physical_widgets; widget.blockscene.visible[] = !is_tracker; end
+        tracker.set_active!(is_tracker)
+        helptext[] = is_tracker ? "Kịch bản minh họa • Không phải nhận diện từ mô hình • Biểu tượng không chỉ bán kính bão" :
+            is_globe ? "Địa cầu 3D • Kéo chuột trái: xoay • Cuộn: thu phóng • Bấm trái: đọc giá trị" :
+            "Bản đồ 2D • Cuộn: thu phóng • Chuột phải: di chuyển • Bấm trái: đọc giá trị"
+        refresh()
+    end
     function refresh_point()
         cell = selected[]
         if cell !== nothing
@@ -174,6 +194,10 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         finite = filter(isfinite, vec(a))
         stattext[] = isempty(finite) ? (f == :mslp && sourcemenu.selection[] == :live && t == 1 ? "Áp suất mốc khởi tạo\nchưa được mô hình tính." : "Khung này thiếu dữ liệu.") : @sprintf("Toàn bản đồ / %s\nMin  %.3f\nMax  %.3f", field_unit(f), minimum(finite), maximum(finite))
         refresh_point()
+        tracker.clock[] = d.times[t]
+        if viewmenu.selection[] == :tracker
+            title[] = "STORM TRACKER / KỊCH BẢN MINH HỌA\n$(tracker.scenario.title) · Không phải nhận diện từ mô hình"
+        end
     end
     on(fieldmenu.selection) do f
         field[] = f
@@ -316,7 +340,8 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     on(stepmodel.clicks) do _; request_model("step"); end
     on(stopmodel.clicks) do _; request_model("stop"); end
     refresh()
-    (; fig, ax, globe, session, history, sourcemenu, newrun, runmodel, pausemodel, stepmodel, stopmodel,
+    notify(viewmenu.selection)
+    (; fig, ax, globe, tracker, session, history, sourcemenu, newrun, runmodel, pausemodel, stepmodel, stopmodel,
         livestatus, poll_live!, replace_data!, viewmenu, resetview, vertexcolors, globe_marker, fieldmenu, layermenu, lockscale, slider, selected, field, layer, time,
         pointtext, mapvalues, limits, play, back, forward, playing)
 end
@@ -345,6 +370,7 @@ function launch(path)
             catch err
                 viewer.livestatus[] = "Không đọc được phiên: " * first(sprint(showerror,err),180)
             end
+            viewer.tracker.animate!(0.08tick)
             tick += 1
             iseven(tick) && advance_playback!(viewer)
         end

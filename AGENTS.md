@@ -20,3 +20,7 @@ reference climatologies as computed model results.
 
 Keep the backlog current as work is actually implemented and validated. Proposed
 implementation ordering in the backlog is a recommendation, not a new user mandate.
+
+Storm Tracker currently reads explicitly labeled illustrative scenarios from
+`scenarios/demo_storms.toml`; it does not detect storms from SpeedyWeather output.
+See `scenarios/README.md` before changing its schema or classification rules.

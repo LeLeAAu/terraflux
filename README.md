@@ -29,6 +29,24 @@ julia --project=. viewer.jl --setup
 julia --project=. viewer.jl /path/to/output.nc
 ```
 
+## Storm Tracker — bản đầu dùng kịch bản minh họa
+
+Chọn **Storm Tracker** trong menu góc trên phải. Với dữ liệu mẫu, kéo thanh thời gian tới **2000-01-04 00:00** (khung 13/41) để xem hai hệ thống cùng hoạt động, hoặc bấm **Tới đầu kịch bản** để bắt đầu từ ngày 1.
+
+![Storm Tracker](docs/storm_tracker.png)
+
+- Đây là **kịch bản thử được khai báo trong `scenarios/demo_storms.toml`**, không phải bão được nhận diện từ SpeedyWeather, dữ liệu quan trắc hay dự báo. Vị trí, gió và áp suất trong kịch bản không làm thay đổi mô hình khí quyển. Nhãn nguồn luôn hiện trong chế độ này.
+- ID ổn định `DEMO-01` và `DEMO-02`, biểu tượng/màu theo trạng thái, quỹ đạo lịch sử và đồng hồ dùng chung thanh thời gian với các chế độ hiện có. Không vẽ phần quỹ đạo tương lai. Sau khi hệ thống kết thúc, biểu tượng biến mất và lịch sử/dấu kết thúc được giữ nếu bật tùy chọn.
+- Bấm biểu tượng hoặc chọn trong danh sách để đọc thông tin. Đổi đơn vị gió giữa knot, m/s, km/h và mph. Trường áp suất không được khai báo sẽ hiện **chưa có dữ liệu**.
+- **Trường vật lý** và **Địa cầu 3D** chuyển sang vị trí ô lưới gần tâm đã chọn, giữ nguyên thời gian. Các trường vật lý vẫn là dữ liệu SpeedyWeather độc lập; chúng không được tạo ra từ kịch bản minh họa. Biểu tượng bão chỉ được vẽ trong Storm Tracker ở bản này.
+- Có tùy chọn giữ lịch sử, ngừng xoay để giảm hiệu ứng và chọn phạm vi WPAC/toàn cầu. Phát/Dừng tiếp tục dùng các nút phát lại bên dưới. Chuyển chế độ không chạy thêm hay sửa mô phỏng.
+- Các cánh biểu tượng xoay theo bán cầu, phục vụ đọc giao diện; kích thước và tốc độ animation không biểu thị bán kính hay tốc độ gió vật lý. Tên phụ được rút gọn khi hệ thống ở gần hệ thống đang chọn; chưa có bộ giải quyết mọi trường hợp nhãn chồng nhau.
+- Nội suy tuyến tính vị trí/gió giữa các mốc kịch bản; trạng thái loại hệ thống đổi tại mốc khai báo. Quỹ đạo tô theo cấp ở đầu từng đoạn; nhiễu động dùng nét chấm, tàn dư dùng nét đứt. Đường qua kinh tuyến đổi ngày được ngắt để không vẽ một dây nối ngang cả bản đồ.
+- Thang hiển thị dùng gió duy trì **1 phút / 10 m**, ngưỡng knot: D <34; S ≥34; C1 ≥64; C2 ≥83; C3 ≥96; C4 ≥113; C5 ≥137. Các nhóm ngoại nhiệt đới/tàn dư/nhiễu động do kịch bản khai báo; cận nhiệt đới dùng SD/SS theo ngưỡng 34 knot. Không tự phân loại gió trên các tầng T32 thành bão SSHWS.
+- Nền hiện là đa giác đất và đường bờ Natural Earth, kèm một số địa danh tham chiếu; chưa có ảnh vệ tinh. ACE, ENSO, thiệt hại, thương vong, biểu đồ mùa và nhận diện bão từ mô hình **chưa được triển khai**, không có số trang trí thay thế.
+
+Ngày của kịch bản mẫu là 2000-01-01…2000-01-08 để trùng trục thời gian dữ liệu mẫu. Nếu mở tệp thời gian khác, kịch bản không tự dịch sang năm mới và có thể không có hệ thống trong khoảng đang xem. Hướng dẫn cấu trúc dữ liệu ở [`scenarios/README.md`](scenarios/README.md); yêu cầu đầy đủ và việc còn chờ ở [`docs/UI_BACKLOG.md`](docs/UI_BACKLOG.md).
+
 ## Chạy mô phỏng từ giao diện
 
 Dải **MÔ PHỎNG MỚI** nằm ngay phía trên phần phát lại:
@@ -78,6 +96,7 @@ Phần bản đồ dùng kinh độ −180…180°, vĩ độ −90…90°, đư
 - `src/viewer.jl`: giao diện GLMakie, bản đồ/địa cầu, các điều khiển và phát lại.
 - `src/globe.jl`: hình học từng ô địa cầu, chuyển tọa độ và chọn mặt cầu bằng tia nhìn.
 - `src/live.jl`, `src/live_worker.jl`: điều khiển tiến trình mô phỏng riêng và công bố các đoạn dữ liệu hoàn tất.
+- `src/storms.jl`, `src/tracker.jl`: dữ liệu kịch bản và giao diện Storm Tracker.
 - `viewer.jl`: điểm khởi chạy, nhận đường dẫn dữ liệu.
 - `main.jl`, `check_model.jl`: mô phỏng và kiểm tra trạng thái hiện có.
 - `note1.txt`: mục tiêu và lộ trình phát triển.
@@ -105,4 +124,12 @@ julia --project=. test/live_smoke.jl
 julia --project=. test/live_cleanup.jl
 # Kiểm tra nút giao diện với một worker thật, cần màn hình/OpenGL:
 julia --project=. test/live_viewer_smoke.jl
+```
+
+Kiểm tra schema/phân loại/thời gian/quỹ đạo của kịch bản, và giao diện Storm Tracker:
+
+```sh
+julia --project=. test/storms.jl
+# Cần màn hình/OpenGL:
+julia --project=. test/tracker_smoke.jl
 ```
