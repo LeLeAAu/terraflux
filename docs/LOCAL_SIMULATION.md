@@ -48,6 +48,9 @@ Trên Windows, file log được mở bằng Notepad với đường dẫn là �
 
 - `simulation_setup.log`: stdout/stderr của cả khởi động, cài/nạp thư viện và
   GUI; lỗi xảy ra trước khi cửa sổ xuất hiện cũng được giữ. Launcher ghi nối tiếp.
+  Chỉ launcher mở file; Julia ghi qua stderr được kế thừa. Không mở lại cùng
+  file trong GUI vì Windows có thể từ chối handle ghi thứ hai. Khi chạy trực
+  tiếp `julia simulation_setup.jl`, log khởi động hiện trong terminal.
 - `worker.log`: cấu hình, lệnh chạy, các giai đoạn, tiến độ và bốn bước kiểm chứng;
   lỗi có stacktrace đầy đủ. Mỗi phiên có log riêng.
 - `status.toml`: trạng thái máy đọc được, giai đoạn, phần trăm, giờ mô hình và
@@ -105,3 +108,16 @@ julia --project=. test/batch_worker_errors.jl
 Kiểm thử form có màn hình/OpenGL ở `test/setup_viewer.jl` chạy mô hình thật
 với một luồng CPU, đọc tiến độ, chọn log, kiểm chứng, giữ kết quả khi dừng sau
 hoàn tất và hủy một phiên mới. Windows chưa được chạy trực tiếp trong cloud Linux.
+
+
+Kiểm tra luồng khởi động và log (không chạy mô phỏng):
+
+```sh
+julia --project=. test/setup_logging.jl
+# Cần màn hình/OpenGL, mở và đóng form thật:
+julia --project=. test/setup_launch.jl
+```
+
+`setup_logging.jl` kiểm tra logger không che mất lỗi gốc và dùng handle có sẵn;
+khi chạy trên Windows, bài kiểm tra dùng chuyển hướng thực của `cmd` để kiểm
+tra trường hợp file log đang được launcher giữ mở.

@@ -129,14 +129,23 @@ function build_simulation_setup(;root=joinpath(@__DIR__,"sessions","generated"),
     (;fig,days,resolution,levels,interval,threads,seed,destination,estimate,runbutton,stop,openlog,openresult,status,job,poll!,config)
 end
 
-function launch_setup()
-    setuplog = joinpath(@__DIR__, "simulation_setup.log")
+function log_setup(write_message,io)
     try
-        open(setuplog, "a") do io
+        write_message(io)
+        flush(io)
+    catch
+        # Logging must not prevent startup or replace the original GUI error.
+    end
+end
+
+function launch_setup(;build=build_simulation_setup,display_window=display,log_io=stderr)
+    # The .bat/.sh launcher already owns simulation_setup.log and redirects this
+    # stream into it. Reopening that same file is denied by Windows sharing rules.
+    try
+        log_setup(log_io) do io
             println(io, "[$(Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS"))] Khởi chạy simulation_setup GUI...")
-            flush(io)
         end
-        setup=build_simulation_setup();screen=display(setup.fig)
+        setup=build();screen=display_window(setup.fig)
         try
             while isopen(screen)
                 sleep(0.25)
@@ -152,11 +161,10 @@ function launch_setup()
         end
     catch err
         bt = catch_backtrace()
-        open(setuplog, "a") do io
+        log_setup(log_io) do io
             println(io, "\n[$(Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS"))] [LỖI KHỞI ĐỘNG GUI]")
             showerror(io, err, bt)
             println(io, "\n" * "="^70)
-            flush(io)
         end
         rethrow()
     end

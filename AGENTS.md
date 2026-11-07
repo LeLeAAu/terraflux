@@ -98,3 +98,10 @@ one-time heating distinct from sustained forcing or an initialized cyclone.
 
 Live commands run in order so a queued thermal edit cannot be silently skipped
 by a following run request; an explicit stop cancels unstarted work.
+
+
+Windows startup log fix: Create_Simulation.bat owns simulation_setup.log via
+stdout/stderr redirection. launch_setup must write the inherited stderr stream,
+never reopen the same file (Windows can deny the second writer). Logging failure
+must not abort GUI startup or mask the original exception. Direct Julia runs log
+to the terminal. Focused checks are setup_logging.jl and setup_launch.jl.
