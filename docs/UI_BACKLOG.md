@@ -78,6 +78,19 @@ chưa có lõi ấm/hoàn lưu kín, xử lý tách/hợp nhất hoặc đánh g
 
 ## Danh sách cần làm theo tài liệu nguồn
 
+### Đối chiếu phân loại Mỹ
+
+- [x] Đã đọc nguồn NOAA/NWS tiếng Anh, ghi định nghĩa/đặc điểm và liên kết trong
+  `STORM_CLASSIFICATION_US.txt`; tập trung quy tắc ở `src/classification.jl`.
+- [x] Tách loại hệ thống, chuẩn gió và basin; WPAC TY/STY (64/130 kt), hurricane/
+  major hurricane, Category tương đương và không đồng nhất STY với C5 (137 kt).
+- [x] Bổ sung low/posttropical; remnant <34 kt; cận nhiệt không tự thành typhoon;
+  thiếu chuẩn gió trả UNKNOWN. Mô hình thiếu xác nhận cấu trúc/gió chuẩn giữ L?.
+- [x] Thẻ/chú giải dùng quy tắc Mỹ; kiểm tra biên, chuẩn gió, chuyển loại, schema
+  và phân loại không đổi khi đổi góc nhìn trong `test/classification.jl` và
+  `test/tracker_smoke.jl`.
+- [ ] Bổ sung và kiểm định chẩn đoán cấu trúc/gió chuẩn để xác nhận TC từ mô hình.
+
 ### A. Chế độ và ngôn ngữ hình ảnh — mục 1, 2, 14
 
 - [ ] Thêm chế độ riêng có tên gợi ý **Storm Tracker**; bản đồ chiếm phần lớn màn

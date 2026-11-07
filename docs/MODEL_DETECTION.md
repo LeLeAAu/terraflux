@@ -10,6 +10,9 @@ có thể chưa có đủ dữ liệu hoặc chưa có tâm đạt tiêu chí.
 Đây là chẩn đoán sơ bộ các tâm áp thấp đi kèm xoáy thuận trên lưới mô hình,
 **không phải bộ xác nhận bão nhiệt đới, không phải dự báo và không gán SSHWS**.
 `L?` là ký hiệu ứng viên, khác `L` nhiễu động được khai báo trong kịch bản.
+Định nghĩa Mỹ và điều kiện để xếp TD/TS/TY/SSHWS nằm trong
+[`STORM_CLASSIFICATION_US.txt`](../STORM_CLASSIFICATION_US.txt). Nguồn mô hình hiện
+chưa có xác nhận cấu trúc và gió 1 phút/10 m nên vẫn giữ `L?` theo bộ quy tắc đó.
 
 ## Dữ liệu và công thức
 

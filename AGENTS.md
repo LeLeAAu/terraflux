@@ -26,6 +26,10 @@ Storm Tracker has separate illustrative-scenario and model-candidate sources.
 these are MODEL_LOW / L? and must not be classified as tropical storms or SSHWS.
 Read `docs/MODEL_DETECTION.md` before changing criteria/tracking. The scenario
 loader remains separate; see `scenarios/README.md` for its classification rules.
+US cyclone definitions and English primary sources are recorded in
+`STORM_CLASSIFICATION_US.txt`; classification rules live in `src/classification.jl`.
+Nature, basin and 1-minute/10-m wind basis are separate. WPAC STY begins at
+130 kt, not the SSHWS C5 threshold of 137 kt. Camera region must not change basin.
 
 Mode-specific widgets must use `src/ui_scope.jl` input scoping. Hiding a Makie
 Menu scene alone does not prevent its invisible hit area receiving mouse input.

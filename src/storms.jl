@@ -1,17 +1,21 @@
 module TerraFluxStorms
 using Dates, TOML
+include("classification.jl")
+using .TerraFluxClassification
 export StormSample, StormSystem, StormScenario, load_scenario, storm_state, storm_class,
-       history_segments, wind_value, CATEGORY_STYLES
+       history_segments, wind_value, CATEGORY_STYLES, classify_system, storm_description
 
 const CATEGORY_STYLES = Dict(
     :MODEL_LOW => ("L?", "Ứng viên xoáy mô hình", "#84ccd7"),
+    :LOW => ("L", "Vùng áp thấp", "#a4b7c5"), :POST => ("PT", "Xoáy thuận hậu nhiệt đới", "#b6bac4"),
+    :UNKNOWN => ("?", "Chưa xếp cường độ", "#a4b7c5"),
     :L => ("L", "Nhiễu động", "#50ddea"), :EX => ("EX", "Ngoại nhiệt đới", "#b6bac4"),
     :RL => ("×", "Áp thấp tàn dư", "#8f95a3"), :D => ("D", "Áp thấp nhiệt đới", "#469cf7"),
     :SD => ("SD", "Áp thấp cận nhiệt đới", "#ad78ed"), :S => ("S", "Bão nhiệt đới", "#67ed52"),
     :SS => ("SS", "Bão cận nhiệt đới", "#b4f09a"),
     :C1 => ("1", "Cấp 1", "#f3f65b"), :C2 => ("2", "Cấp 2", "#f8c448"),
     :C3 => ("3", "Cấp 3", "#fa963a"), :C4 => ("4", "Cấp 4", "#f2534d"), :C5 => ("5", "Cấp 5", "#f667c2"))
-const KINDS = ("disturbance","tropical","subtropical","extratropical","remnant")
+const KINDS = US_KINDS
 struct StormSample
     time::DateTime
     lon::Float64
@@ -26,7 +30,9 @@ struct StormSystem
     name::String
     local_name::String
     samples::Vector{StormSample}
+    basin::Symbol
 end
+StormSystem(id,name,local_name,samples)=StormSystem(id,name,local_name,samples,:unspecified)
 struct StormScenario
     title::String
     provenance::String
@@ -44,6 +50,8 @@ function load_scenario(path)
         id = String(system["id"])
         !isempty(strip(id)) && all(s -> s.id != id,systems) || error("ID hệ thống rỗng hoặc trùng: $id")
         samples = StormSample[]
+        basin=Symbol(get(system,"basin",get(meta,"basin","unspecified")))
+        basin in US_BASINS || error("Lưu vực không hỗ trợ: $basin")
         for raw in system["samples"]
             lon,lat,wind = Float64(raw["lon"]),Float64(raw["lat"]),Float64(raw["wind_knots"])
             all(isfinite,(lon,lat,wind)) && -180 <= lon <= 180 && -90 <= lat <= 90 && wind >= 0 || error("Tọa độ/gió không hợp lệ: $id")
@@ -51,35 +59,33 @@ function load_scenario(path)
             pressure === nothing || (isfinite(pressure) && pressure > 0) || error("Áp suất không hợp lệ: $id")
             kind = String(raw["kind"])
             kind in KINDS || error("Loại hệ thống không hỗ trợ: $kind")
+            classify_system(kind,wind;basin,wind_average_minutes=1,wind_height_m=10)
             time = DateTime(raw["time"])
             isempty(samples) || time > samples[end].time || error("Mốc thời gian phải tăng nghiêm ngặt: $id")
             isempty(samples) || samples[end].active || error("Không tái sử dụng ID sau khi hệ thống đã tan: $id")
             push!(samples,StormSample(time,lon,lat,wind,pressure,kind,get(raw,"active",true)))
         end
         length(samples) >= 2 || error("Mỗi hệ thống cần ít nhất hai mốc: $id")
-        push!(systems,StormSystem(id,String(system["name"]),String(get(system,"local_name","")),samples))
+        push!(systems,StormSystem(id,String(system["name"]),String(get(system,"local_name","")),samples,basin))
     end
     !isempty(systems) || error("Kịch bản chưa có hệ thống.")
     StormScenario(String(meta["title"]),String(meta["provenance"]),systems)
 end
 
-"SSHWS lower bounds in knots for declared 1-minute, 10-m sustained winds."
-function storm_class(kind, wind)
-    kind == "model_low" && isfinite(wind) && wind >= 0 && return :MODEL_LOW
-    kind in KINDS && isfinite(wind) && wind >= 0 || throw(ArgumentError("Loại/gió không hợp lệ"))
-    kind == "disturbance" && return :L
-    kind == "extratropical" && return :EX
-    kind == "remnant" && return :RL
-    kind == "subtropical" && return wind < 34 ? :SD : :SS
-    bounds = (34,64,83,96,113,137)
-    categories = (:D,:S,:C1,:C2,:C3,:C4,:C5)
-    categories[1+count(b -> wind >= b,bounds)]
+"Display category for scenario winds already validated as 1-minute / 10-m; model_low remains L?."
+function storm_class(kind,wind;wind_average_minutes=1,wind_height_m=10)
+    classify_system(kind,wind;wind_average_minutes,wind_height_m).category
+end
+function storm_description(system,state)
+    c=classify_system(state.kind,state.wind_knots;basin=system.basin,wind_average_minutes=1,wind_height_m=10)
+    c.sshws===nothing && return c.label
+    c.label*" · "*c.code*"\n"*(c.equivalent ? "Tương đương SSHWS Cấp " : "SSHWS Cấp ")*string(c.sshws)
 end
 wind_value(knots, unit) = unit == :kn ? knots : unit == :ms ? knots*1852/3600 :
     unit == :kmh ? knots*1.852 : unit == :mph ? knots*1852/1609.344 : throw(ArgumentError("Đơn vị gió không hỗ trợ"))
 wraplon(x) = mod(x+180,360)-180
 
-"Position/wind are linearly interpolated; kind changes only at declared timestamps."
+"Position is interpolated; wind/pressure interpolate only within the same declared nature."
 function storm_state(system::StormSystem, time::DateTime)
     samples = system.samples
     time < samples[1].time && return nothing
@@ -93,9 +99,10 @@ function storm_state(system::StormSystem, time::DateTime)
     fraction = Dates.value(time-a.time)/Dates.value(b.time-a.time)
     lon = wraplon(a.lon+fraction*wraplon(b.lon-a.lon))
     lat = a.lat+fraction*(b.lat-a.lat)
-    wind = a.wind_knots+fraction*(b.wind_knots-a.wind_knots)
-    pressure = a.pressure_hpa === nothing || b.pressure_hpa === nothing ? nothing :
-        a.pressure_hpa+fraction*(b.pressure_hpa-a.pressure_hpa)
+    wind = a.kind == b.kind ? a.wind_knots+fraction*(b.wind_knots-a.wind_knots) : a.wind_knots
+    pressure = a.kind != b.kind ? a.pressure_hpa :
+        a.pressure_hpa === nothing || b.pressure_hpa === nothing ? nothing :
+            a.pressure_hpa+fraction*(b.pressure_hpa-a.pressure_hpa)
     StormSample(time,lon,lat,wind,pressure,a.kind,true)
 end
 

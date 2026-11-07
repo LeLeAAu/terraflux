@@ -1,0 +1,186 @@
+TERRAFLUX — PHÂN LOẠI HỆ THỐNG ÁP THẤP VÀ XOÁY THUẬN THEO QUY ƯỚC MỸ
+Ngày đối chiếu nguồn tiếng Anh: 2026-11-07 (UTC)
+
+1. HỆ QUY CHIẾU ĐƯỢC CHỌN
+
+Dùng định nghĩa NOAA/NWS/NHC và quy ước gió Mỹ: maximum sustained surface
+wind = gió cực đại duy trì trung bình 1 phút, ở độ cao 10 m, nơi thoáng.
+Ở Tây Bắc Thái Bình Dương (WPAC), dùng tên typhoon/super typhoon theo quy
+ước Mỹ; NOAA/NWS định nghĩa super typhoon từ 130 knot. JTWC là trung tâm
+cảnh báo quân sự Mỹ cho khu vực này; không trộn với ngưỡng/gió trung bình
+10 phút của JMA hay hệ phân cấp Việt Nam.
+
+Phải xác định LOẠI/CẤU TRÚC hệ thống trước, sau đó mới phân cường độ gió
+trong nhóm phù hợp. Một cực tiểu áp suất hay gió mạnh riêng lẻ không chứng
+minh đó là xoáy thuận nhiệt đới. Không có ngưỡng MSLP duy nhất để biến
+vùng áp thấp thành TD, TS, hurricane hay typhoon.
+
+2. ĐẶC ĐIỂM VÀ CÁC NHÓM
+
+Low-pressure area — vùng áp thấp (LOW, icon L)
+  Áp suất thấp hơn vùng xung quanh. Chưa mặc định có tâm hoàn lưu kín,
+  đối lưu sâu có tổ chức hay lõi ấm. Không tự xếp SSHWS theo gió/áp suất.
+
+Tropical disturbance — nhiễu động nhiệt đới (DB, icon L)
+  Hệ đối lưu có tổ chức ở nhiệt đới/cận nhiệt đới, phi front, di chuyển,
+  thường rộng 100–300 mile và duy trì đặc trưng ít nhất 24 giờ theo từ
+  điển NWS. Có thể có hoặc không có nhiễu động gió đo được; không bắt
+  buộc có hoàn lưu mặt đất kín. Không phải một khoảng tốc độ gió cố định.
+  DB là mã nội bộ cho loại khai báo; L là ký hiệu đồ họa của project.
+
+Tropical cyclone — xoáy thuận nhiệt đới (TC)
+  Xoáy quy mô synoptic, lõi ấm, phi front, hình thành trên biển nhiệt
+  đới/cận nhiệt đới, có đối lưu sâu có tổ chức và hoàn lưu gió bề mặt
+  kín quanh một tâm xác định. TC là nhóm bao hàm TD, TS, hurricane/typhoon;
+  không chỉ là tên gọi cho những cơn đã đạt 64 knot.
+
+Tropical depression — áp thấp nhiệt đới (TD, icon D)
+  Đã là tropical cyclone về cấu trúc; gió 1 phút/10 m dưới 34 knot.
+  Tài liệu công bố theo knot nguyên thường ghi <=33 kt / <=38 mph.
+
+Tropical storm — bão nhiệt đới (TS, icon S)
+  Tropical cyclone có gió từ 34 đến dưới 64 knot.
+  Bảng knot nguyên: 34–63 kt; bảng mph công bố: 39–73 mph.
+
+Hurricane (HU) / Major hurricane (MH)
+  Tropical cyclone từ 64 knot tại Đại Tây Dương, đông hoặc trung tâm
+  Bắc Thái Bình Dương. Major hurricane là SSHWS Category 3–5, từ 96 kt.
+  Category 1–2 vẫn nguy hiểm; chữ major không có nghĩa mọi cơn dưới C3
+  đều ít nguy hiểm.
+
+Typhoon (TY) / Super typhoon (STY)
+  Tên dùng tại Tây Bắc Thái Bình Dương. Typhoon bắt đầu từ 64 knot;
+  super typhoon từ 130 knot gió 1 phút/10 m. STY không đồng nghĩa C5:
+  một cơn 130–<137 kt là STY nhưng mới tương đương SSHWS C4.
+  Nhãn TY áp dụng trong project cho 64–<130 kt; STY là nhóm con mạnh hơn.
+  Ở lưu vực khác/không biết lưu vực, project dùng tên chung TC, không
+  suy đoán typhoon/hurricane chỉ từ góc nhìn bản đồ hay tên kịch bản.
+
+Subtropical cyclone — xoáy thuận cận nhiệt đới
+  Hệ áp thấp phi front mang cả đặc điểm nhiệt đới và ngoại nhiệt đới,
+  có hoàn lưu kín ở bề mặt; gió cực đại thường xa tâm hơn và đối lưu/gió
+  kém đối xứng hơn tropical cyclone. Không suy ra chỉ từ vĩ độ.
+  Subtropical depression (SD): dưới 34 kt.
+  Subtropical storm (SS): từ 34 kt, không tự đổi thành hurricane/typhoon
+  khi vượt 64 kt nếu nguồn chưa xác nhận chuyển cấu trúc sang tropical.
+  Không gán SSHWS cho hệ vẫn được xác định là subtropical.
+
+Extratropical cyclone — xoáy thuận ngoại nhiệt đới (EX)
+  Năng lượng chủ yếu từ chênh lệch nhiệt độ giữa các khối khí (baroclinic),
+  thường có front. Có thể có gió rất mạnh. Không tự xếp SSHWS dù gió
+  vượt ngưỡng hurricane; không suy ra EX chỉ vì tâm ra khỏi vùng nhiệt đới.
+
+Post-tropical cyclone — xoáy thuận hậu nhiệt đới (PT)
+  Cựu TC không còn đủ đặc điểm nhiệt đới. Có thể vẫn mưa lớn/gió mạnh.
+  Hệ đã chuyển EX và remnant low là hai trường hợp cụ thể của nhóm này;
+  không phải mọi EX đều từng là TC. Không có một ngưỡng gió chung cho PT.
+
+Remnant low — áp thấp tàn dư (RL, icon ×)
+  Một post-tropical cyclone không còn tổ chức đối lưu cần thiết của TC
+  và có gió dưới 34 kt. Không đồng nghĩa mọi áp thấp yếu hay mọi lần
+  detector mất dấu. Nguồn kịch bản khai báo RL nhưng gió >=34 kt bị từ chối.
+
+Invest / Potential tropical cyclone (PTC)
+  Invest là chỉ định theo dõi/thu thập dữ liệu/chạy mô hình của trung tâm
+  dự báo; không phải cấp gió, cũng không tự hàm ý xác suất phát triển.
+  PTC là thuật ngữ sản phẩm cảnh báo NWS cho nhiễu động CHƯA phải TC
+  nhưng đe dọa gây điều kiện TS/hurricane trên đất liền trong 48 giờ.
+  Đây là chỉ định nghiệp vụ, không phải một cấp SSHWS. Project chưa có
+  nguồn nghiệp vụ/advisory để tự gán Invest, số 9x hay PTC.
+
+3. SAFFIR–SIMPSON HURRICANE WIND SCALE (SSHWS)
+
+Chỉ dựa vào gió cực đại duy trì chuẩn. Áp suất, mưa, nước dâng, kích thước
+và thiệt hại không quyết định Category. Không lấy mô tả thiệt hại điển
+hình của bảng NOAA làm số thiệt hại/thương vong cho project.
+
+Category   Khoảng project dùng (kt)   Knot nguyên   Mph công bố
+1          64 <= V < 83              64–82         74–95
+2          83 <= V < 96              83–95         96–110
+3          96 <= V < 113             96–112        111–129
+4          113 <= V < 137            113–136       130–156
+5          V >= 137                  >=137        >=157
+
+Ở hurricane basins: hiển thị Hurricane/Major hurricane + SSHWS Category.
+Ở WPAC: tên TY/STY theo ngưỡng Mỹ; màu/icon số 1–5 là TƯƠNG ĐƯƠNG GIÓ
+SSHWS, được ghi rõ trên thẻ. Không gọi đó là hệ phân loại chính thức
+JMA/Việt Nam, và không đổi STY thành Category 5.
+
+Đơn vị chuẩn để so ngưỡng trong mã: knot, dùng giá trị chưa làm tròn.
+1 kt = 1852/3600 m/s = 1.852 km/h = 1852/1609.344 mph.
+Các cột mph/km/h trong bảng công bố là các khoảng làm tròn, không phải
+những định nghĩa độc lập có thể đổi qua lại chính xác tại mọi biên.
+Quy ước liên tục của project: [34,64), [64,83), ... Không làm tròn gió
+lên trước khi xếp cấp; đổi đơn vị hiển thị không đổi phân loại.
+
+4. ÁP DỤNG TRONG TERRAFLUX
+
+Mã quy tắc: src/classification.jl — classify_system(kind, wind; ...).
+Hàm trả loại đồ họa, mã nghiệp vụ, tên, số SSHWS (nếu áp dụng), cờ
+super_typhoon/major_hurricane, cờ tương đương và lý do chưa xếp được.
+Ngưỡng được tập trung tại US_TROPICAL_BOUNDS; không rải nhiều bảng khác nhau.
+
+- kind là bản chất đã được nguồn/kịch bản xác định; hàm không tự chứng
+  minh cấu trúc từ số gió. basin là metadata của từng hệ thống, không
+  phải menu vùng/camera. basin có thể là wpac/atlantic/epac/cpac/other/
+  unspecified; không khai báo thì dùng tên chung, không đoán lưu vực.
+  basin hiện cố định cho cả track; chưa tự xử lý đổi lưu vực khi qua ranh giới.
+- API classify_system mặc định chưa biết chuẩn gió. Muốn phân cường độ
+  phải cung cấp wind_average_minutes=1 và wind_height_m=10; nếu thiếu hoặc
+  sai chuẩn thì trả UNKNOWN, không gán TD/TS/C1–C5 theo con số đó.
+- Kịch bản TOML phải khai báo gió 1 phút/10 m; basin ở [scenario] có thể
+  được override ở từng [[systems]]. storm_class là wrapper đồ họa cho
+  loại gió kịch bản đã được loader kiểm tra. kind: low, disturbance,
+  tropical, subtropical, extratropical, posttropical, remnant.
+- Cường độ/áp suất kịch bản chỉ nội suy giữa hai mốc cùng kind; khi
+  khác kind giữ giá trị mốc trước đến mốc chuyển loại, tránh tạo một
+  remnant low giả với gió >=34 kt. Vị trí vẫn nội suy như trước.
+- Nguồn mô hình hiện chỉ phát hiện cực tiểu MSLP kèm xoáy thuận từ gió
+  tầng sigma. Không có xác nhận hoàn lưu kín bề mặt, lõi ấm, đối lưu
+  sâu có tổ chức và gió 1 phút/10 m. Vì vậy giữ MODEL_LOW / L?, kể cả
+  khi cực đại gió một ô rất lớn. L? không phải tên loại nghiệp vụ NOAA.
+- Không tự nhân một hệ số chung để biến gió tầng sigma/gió 10 phút/
+  gió giật thành gió 1 phút ở 10 m. Muốn phân loại mô hình thật cần bổ
+  sung chẩn đoán cấu trúc và dữ liệu gió chuẩn có phương pháp được kiểm chứng.
+- Không dùng STY/MH cho các hệ EX/PT/SS. Không suy diễn ACE, ENSO,
+  damages/deaths từ bảng cấp gió. Bảng màu và animation là lựa chọn UI.
+
+5. NGUỒN TIẾNG ANH ĐÃ ĐỌC
+
+[1] NOAA/NWS Glossary — Tropical Cyclone, gồm định nghĩa lõi ấm, phi front,
+    đối lưu sâu và hoàn lưu gió kín:
+    https://forecast.weather.gov/glossary.php?word=tropical+cyclone
+[2] NOAA/NWS Glossary — Maximum Sustained Surface Wind, chuẩn 1 phút/10 m:
+    https://forecast.weather.gov/glossary.php?word=maximum+sustained+surface+wind
+[3] NOAA/NWS Glossary — TD/TS/SD/SS và Typhoon/Super Typhoon:
+    https://forecast.weather.gov/glossary.php?word=tropical+depression
+    https://forecast.weather.gov/glossary.php?word=tropical+storm
+    https://forecast.weather.gov/glossary.php?word=subtropical+cyclone
+    https://forecast.weather.gov/glossary.php?word=typhoon
+    https://forecast.weather.gov/glossary.php?word=super+typhoon
+[4] NOAA/NWS Miami — Saffir-Simpson Hurricane Wind Scale:
+    https://www.weather.gov/mfl/saffirsimpson
+    Đối chiếu trực tiếp đủ 5 ngưỡng knot, mph và major hurricane.
+[5] NOAA/NWS Mobile — Tropical Definitions:
+    https://www.weather.gov/mob/tropical_definitions
+    Đối chiếu disturbance, TC, hurricane, subtropical, EX, PT, remnant,
+    Invest và PTC; trang này ghi rõ remnant <34 kt và PTC trong 48 giờ.
+[6] NOAA/NWS Glossary — Tropical Disturbance:
+    https://forecast.weather.gov/glossary.php?word=tropical+disturbance
+[7] JTWC — Significant Tropical Weather Advisory (sản phẩm thay đổi theo giờ):
+    https://www.metoc.navy.mil/jtwc/products/abpwweb.txt
+    Chỉ đối chiếu cách dùng thực tế TD, disturbance/Invest, subtropical;
+    không dùng vị trí/gió của bản tin làm dữ liệu TerraFlux và không lấy
+    bản tin này làm nguồn định nghĩa ngưỡng STY (nguồn ngưỡng là [3]).
+
+Truy vấn tìm kiếm bằng tiếng Anh đã thử:
+  site.nhc.noaa.gov glossary tropical cyclone subtropical remnant low one minute
+  site.metoc.navy.mil jtwc super typhoon 130 knots one minute
+  JTWC super typhoon 130 knots definition
+Google trả giao diện cần JavaScript trong công cụ đọc HTTP. Các trang NHC
+aboutgloss.shtml/aboutsshws.php và trang chủ JTWC trả HTTP 403 khi truy cập.
+Vì vậy nội dung trên được xác minh từ các trang NOAA/NWS công khai đã đọc
+ở [1]–[6] và sản phẩm JTWC [7], không dựa vào đoạn trích tìm kiếm chưa đọc.
+
+Đây là quy tắc phân loại dùng trong project, không phải giấy chứng nhận
+độ chính xác nhận diện TC của mô hình. Chi tiết detector: docs/MODEL_DETECTION.md.

@@ -5,6 +5,7 @@ using ..TerraFluxUIScope
 using ..TerraFluxStormIcons
 using GLMakie, GeoMakie, Dates, Printf
 export build_tracker
+const US_LEGEND="MỸ · GIÓ 1 PHÚT / 10 m\nD <34 kt · S 34–<64 kt\n1–5: SSHWS (WPAC: tương đương)\nWPAC: TY ≥64 · STY ≥130 kt\nL: áp thấp/nhiễu động · ×: tàn dư\nSD/SS cận nhiệt · EX/PT ngoại/hậu"
 
 function build_tracker(sideposition, mapposition, timestamp; on_physical, on_start, model_provider=()->nothing,
         scenario_path=joinpath(@__DIR__,"..","scenarios","demo_storms.toml"),
@@ -59,7 +60,7 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
     reset!()
     spiral = procedural_marker(style)
     handles = Dict{String,Any}()
-    categories = (:L,:D,:S,:C1,:C2,:C3,:C4,:C5,:SD,:SS,:EX,:RL)
+    categories = (:LOW,:L,:D,:S,:C1,:C2,:C3,:C4,:C5,:SD,:SS,:EX,:POST,:RL,:UNKNOWN)
     function ensure_paths!(h,categories)
         for category in categories
             haskey(h.paths,category) && continue
@@ -110,7 +111,7 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
     # Compact legend over the map. The full scheme and provenance are documented in the repo.
     legendpoints = Point2f[(0.015,0.985),(0.30,0.985),(0.30,0.64),(0.015,0.64)]
     poly!(ax,legendpoints;color=(:black,0.85),space=:relative,inspectable=false,depth_shift=-0.05f0)
-    legend=Observable("KỊCH BẢN / THANG GIÓ 1 PHÚT\nL  Nhiễu động   D / SD  Áp thấp\nS / SS  Bão      EX / ×  Ngoại / tàn dư\n1 → 5  SSHWS: vàng → hồng\nNét chấm: L · Nét đứt: tàn dư")
+    legend=Observable(US_LEGEND)
     text!(ax,Point2f(0.028,0.965);text=legend,space=:relative,
         align=(:left,:top),fontsize=11,color=:white,depth_shift=-0.06f0)
     summary = Observable("")
@@ -186,11 +187,10 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
                     status = now < selected.samples[1].time ? "Chưa xuất hiện tại thời điểm này." : (is_model ? "Không đạt tiêu chí ở mốc này." : "Không còn hoạt động / ngoài dữ liệu.")
                     card[] = "$(selected.id)\n$(display_name)\n$status\nNguồn: $(is_model ? "mô hình" : "kịch bản minh họa")."
                 else
-                    category = storm_class(state.kind,state.wind_knots)
                     unit = unitmenu.selection[]
                     unitlabel = Dict(:kn=>"kn",:ms=>"m/s",:kmh=>"km/h",:mph=>"mph")[unit]
                     pressure = state.pressure_hpa === nothing ? "chưa có dữ liệu" : @sprintf("%.1f hPa",state.pressure_hpa)
-                    card[] = @sprintf("%s / %s\n%s\nVị trí  %.2f° / %.2f°\nGió  %.1f %s\nÁp suất  %s\nNguồn: kịch bản minh họa.",selected.id,display_name,CATEGORY_STYLES[category][2],state.lon,state.lat,wind_value(state.wind_knots,unit),unitlabel,pressure)
+                    card[] = @sprintf("%s / %s\n%s\nVị trí  %.2f° / %.2f°\nGió  %.1f %s\nÁp suất  %s\nNguồn: kịch bản minh họa.",selected.id,display_name,storm_description(selected,state),state.lon,state.lat,wind_value(state.wind_knots,unit),unitlabel,pressure)
                 end
             end
             count_active = count(v -> v !== nothing,values(states))
@@ -216,7 +216,7 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
                 badge[]="KỊCH BẢN MINH HỌA / không phải mô hình"
                 title[]="STORM TRACKER / KỊCH BẢN MINH HỌA\n$(scenario.title) · Không phải nhận diện từ mô hình"
                 note[]="Gió kịch bản: duy trì 1 phút / 10 m.\nChưa có ACE, ENSO và tác động.\nBiểu tượng không phải bán kính bão."
-                legend[]="KỊCH BẢN / THANG GIÓ 1 PHÚT\nL  Nhiễu động   D / SD  Áp thấp\nS / SS  Bão      EX / ×  Ngoại / tàn dư\n1 → 5  SSHWS: vàng → hồng\nNét chấm: L · Nét đứt: tàn dư"
+                legend[]=US_LEGEND
                 summary[]="$count_active hệ thống đang hoạt động / kịch bản\nQuỹ đạo: chỉ tới thời điểm đang xem"
             end
         finally

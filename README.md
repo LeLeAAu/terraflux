@@ -41,11 +41,20 @@ Chọn **Storm Tracker** trong menu góc trên phải. Với dữ liệu mẫu, 
 - **Trường vật lý** và **Địa cầu 3D** chuyển sang vị trí ô lưới gần tâm đã chọn, giữ nguyên thời gian. Các trường vật lý vẫn là dữ liệu SpeedyWeather độc lập; chúng không được tạo ra từ kịch bản minh họa. Biểu tượng bão chỉ được vẽ trong Storm Tracker ở bản này.
 - Có tùy chọn giữ lịch sử, ngừng xoay để giảm hiệu ứng và chọn phạm vi WPAC/toàn cầu. Phát/Dừng tiếp tục dùng các nút phát lại bên dưới. Chuyển chế độ không chạy thêm hay sửa mô phỏng.
 - Các cánh biểu tượng xoay theo bán cầu, phục vụ đọc giao diện; kích thước và tốc độ animation không biểu thị bán kính hay tốc độ gió vật lý. Tên phụ được rút gọn khi hệ thống ở gần hệ thống đang chọn; chưa có bộ giải quyết mọi trường hợp nhãn chồng nhau.
-- Nội suy tuyến tính vị trí/gió giữa các mốc kịch bản; trạng thái loại hệ thống đổi tại mốc khai báo. Quỹ đạo tô theo cấp ở đầu từng đoạn; nhiễu động dùng nét chấm, tàn dư dùng nét đứt. Đường qua kinh tuyến đổi ngày được ngắt để không vẽ một dây nối ngang cả bản đồ.
+- Nội suy tuyến tính vị trí giữa các mốc kịch bản; gió/áp suất nội suy trong cùng loại, giữ mốc trước khi hai đầu khác loại. Trạng thái loại đổi tại mốc khai báo. Quỹ đạo tô theo cấp ở đầu từng đoạn; nhiễu động dùng nét chấm, tàn dư dùng nét đứt. Đường qua kinh tuyến đổi ngày được ngắt để không vẽ một dây nối ngang cả bản đồ.
 - Thang hiển thị dùng gió duy trì **1 phút / 10 m**, ngưỡng knot: D <34; S ≥34; C1 ≥64; C2 ≥83; C3 ≥96; C4 ≥113; C5 ≥137. Các nhóm ngoại nhiệt đới/tàn dư/nhiễu động do kịch bản khai báo; cận nhiệt đới dùng SD/SS theo ngưỡng 34 knot. Không tự phân loại gió trên các tầng T32 thành bão SSHWS.
 - Nền hiện là đa giác đất và đường bờ Natural Earth, kèm một số địa danh tham chiếu; chưa có ảnh vệ tinh. ACE, ENSO, thiệt hại, thương vong, biểu đồ mùa và xác nhận/phân loại bão nhiệt đới từ mô hình **chưa được triển khai**, không có số trang trí thay thế.
 
 Ngày của kịch bản mẫu là 2000-01-01…2000-01-08 để trùng trục thời gian dữ liệu mẫu. Nếu mở tệp thời gian khác, kịch bản không tự dịch sang năm mới và có thể không có hệ thống trong khoảng đang xem. Hướng dẫn cấu trúc dữ liệu ở [`scenarios/README.md`](scenarios/README.md); yêu cầu đầy đủ và việc còn chờ ở [`docs/UI_BACKLOG.md`](docs/UI_BACKLOG.md).
+
+**Quy tắc Mỹ và nguồn tiếng Anh:** [`STORM_CLASSIFICATION_US.txt`](STORM_CLASSIFICATION_US.txt).
+Quy tắc tập trung trong `src/classification.jl`, tách loại hệ thống, chuẩn gió và
+lưu vực. Kịch bản WPAC hiển thị **Typhoon từ 64 kt**, **Super typhoon từ 130 kt**;
+số/màu C1–C5 ghi là tương đương SSHWS. STY 130 kt vẫn là C4, chưa phải C5.
+Hurricane/Major hurricane dùng ở các lưu vực hurricane của Mỹ. Vùng áp thấp,
+nhiễu động, cận nhiệt đới, ngoại/hậu nhiệt đới và tàn dư có quy tắc riêng;
+đổi đơn vị hay góc nhìn không đổi phân loại. API không biết chuẩn gió sẽ trả
+chưa xếp cường độ. `L?` từ mô hình vẫn chưa đủ căn cứ để gọi TD/TS/TY.
 
 ### Ứng viên từ dữ liệu khí quyển thật của mô hình
 
@@ -163,6 +172,7 @@ Kiểm thử nhận diện ứng viên và tích hợp với NetCDF thật:
 
 ```sh
 julia --project=. test/detection.jl
+julia --project=. test/classification.jl
 # Cần màn hình/OpenGL, dùng 2 luồng cho phân tích nền:
 julia --threads=2 --project=. test/detection_viewer.jl
 ```

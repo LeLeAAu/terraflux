@@ -45,6 +45,8 @@ try
         set_close_to!(viewer.slider,13) # Jan 4, both declared systems are active.
         @test tracker.clock[] == DateTime(2000,1,4)
         @test tracker.handles["DEMO-01"].symbol[] == "3"
+        @test occursin("Typhoon · TY",tracker.card[])
+        @test occursin("Tương đương SSHWS Cấp 3",tracker.card[])
         @test tracker.handles["DEMO-02"].symbol[] == "SS"
         @test tracker.handles["DEMO-01"].position[] == [Point2f(130,16)]
         @test viewer.mapvalues[][1:end-1,:] == frame(data,:temp,8,13)
@@ -82,8 +84,11 @@ try
         tracker.trails.checked[]=false
         @test !tracker.trails.checked[]
         tracker.trails.checked[]=true
+        tracker.systemmenu.i_selected[]=1
+        original_classification=tracker.card[]
         tracker.region.i_selected[]=2
         @test tracker.ax.limits[][1] == (-180,180)
+        @test tracker.card[]==original_classification # camera does not change source basin
         tracker.region.i_selected[]=1
         set_close_to!(viewer.slider,41)
         @test !any(h.visible[] for h in values(tracker.handles))
@@ -96,6 +101,22 @@ try
         @test data.fields[:temp] == original
         set_close_to!(viewer.slider,13)
         tracker.systemmenu.i_selected[]=1
+        # Use declared scenario winds to exercise STY separately from C5 in the UI.
+        samples=tracker.scenario.systems[1].samples
+        original_sample=samples[4]
+        try
+            for (wind,glyph) in ((130,"4"),(137,"5"))
+                a=original_sample
+                samples[4]=StormSample(a.time,a.lon,a.lat,wind,a.pressure_hpa,a.kind,a.active)
+                notify(tracker.clock)
+                @test tracker.handles["DEMO-01"].symbol[]==glyph
+                @test occursin("Super typhoon · STY",tracker.card[])
+                @test occursin("Tương đương SSHWS Cấp "*glyph,tracker.card[])
+            end
+        finally
+            samples[4]=original_sample
+            notify(tracker.clock)
+        end
         if !isempty(ARGS)
             click_menu(tracker.systemmenu)
             save(abspath(first(ARGS)),viewer.fig)

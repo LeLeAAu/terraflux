@@ -32,7 +32,7 @@ function load_icon_style(path=joinpath(@__DIR__,"..","assets","storm_tracker","s
     procedural=get(config,"procedural",Dict())
     animation=get(config,"animation",Dict())
     sprites=Dict{Symbol,SpriteStyle}()
-    allowed=("default","L","D","SD","S","SS","EX","RL","C1","C2","C3","C4","C5","MODEL_LOW")
+    allowed=("default","LOW","L","D","SD","S","SS","EX","POST","RL","UNKNOWN","C1","C2","C3","C4","C5","MODEL_LOW")
     for (category,input) in get(config,"sprites",Dict())
         category in allowed || error("Loại icon không hỗ trợ: $category")
         filename=get(input,"file","")

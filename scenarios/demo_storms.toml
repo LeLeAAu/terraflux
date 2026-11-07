@@ -4,6 +4,7 @@ title = "WPAC · Kịch bản minh họa A/B"
 provenance = "illustrative_scenario"
 wind_average_minutes = 1
 wind_height_m = 10
+basin = "wpac"
 
 [[systems]]
 id = "DEMO-01"
