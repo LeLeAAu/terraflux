@@ -1,4 +1,4 @@
-using Dates
+using Dates, TOML
 
 directory = isempty(ARGS) ? pwd() : abspath(ARGS[1])
 statusfile = joinpath(directory, "status.toml")
@@ -21,28 +21,28 @@ end
 
 wlog("Bắt đầu tiến trình worker (PID: $(getpid()), Luồng CPU: $(Threads.nthreads()), Julia: v$VERSION).")
 
-try
-    wlog("Đang nạp các thư viện mô phỏng (TOML, live, generate_long_run, SpeedyWeather)...")
-    using TOML
-    include("live.jl")
-    include(joinpath(@__DIR__, "..", "generate_long_run.jl"))
-    wlog("Đã nạp xong tất cả thư viện thành công.")
-
+function worker_main()
     config_path = joinpath(directory, "config.toml")
     isfile(config_path) || error("Không tìm thấy tệp cấu hình: $config_path")
     c = TOML.parsefile(config_path)
     wlog("Đã đọc cấu hình: $(c["days"]) ngày | T$(c["truncation"]) | $(c["layers"]) tầng sigma | chu kỳ $(c["output_hours"])h | seed=$(c["seed"])")
 
-    TerraFluxLive.atomic_toml(statusfile, Dict("state" => "running"))
+    TerraFluxLive.atomic_toml(statusfile, Dict("state" => "running","phase"=>"initializing"))
     wlog("Trạng thái phiên chuyển sang 'running'. Bắt đầu chạy generate_long_run...")
 
+    report=event->begin
+        status=Dict{String,Any}("state"=>"running")
+        for (key,value) in pairs(event);status[string(key)]=value;end
+        TerraFluxLive.atomic_toml(statusfile,status)
+    end
     path = generate_long_run(c["days"], joinpath(directory, "output");
-        truncation=c["truncation"], layers=c["layers"], output_hours=c["output_hours"], seed=c["seed"])
+        truncation=c["truncation"], layers=c["layers"], output_hours=c["output_hours"], seed=c["seed"],on_progress=report)
 
     wlog("Mô phỏng và kiểm chứng hoàn tất thành công tại: $path")
-    TerraFluxLive.atomic_toml(statusfile, Dict("state" => "complete", "output_path" => path))
-catch err
-    bt = catch_backtrace()
+    TerraFluxLive.atomic_toml(statusfile, Dict("state" => "complete", "phase"=>"complete","percent"=>100,"output_path" => path))
+end
+
+function record_worker_error(err,bt)
     err_full = werr(err, bt)
     short_err = sprint(showerror, err)
     try
@@ -58,5 +58,19 @@ catch err
         println(stderr, "Không thể ghi status.toml: ", sprint(showerror, e_toml))
         flush(stderr)
     end
+end
+
+try
+    wlog("Đang nạp các thư viện mô phỏng (TOML, live, generate_long_run, SpeedyWeather)...")
+    include("live.jl")
+    TerraFluxLive.atomic_toml(statusfile, Dict("state"=>"starting","phase"=>"loading"))
+    include(joinpath(@__DIR__, "..", "generate_long_run.jl"))
+    wlog("Đã nạp xong tất cả thư viện thành công.")
+
+    # Includes add methods/bindings. Enter their latest world before executing
+    # callbacks or saving an exception raised while loading libraries (Julia 1.13).
+    Base.invokelatest(worker_main)
+catch err
+    Base.invokelatest(record_worker_error,err,catch_backtrace())
     rethrow()
 end

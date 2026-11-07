@@ -115,6 +115,8 @@ Bấm đúp **[`Create_Simulation.bat`](Create_Simulation.bat)** (Linux/macOS:
 tầng**, chu kỳ lưu, luồng CPU và seed, rồi **Tạo và chạy**. Khi hoàn tất, bấm
 **Mở kết quả**. Mỗi lần tạo lưu thư mục mới cùng cấu hình/nhật ký/manifest, không
 ghi đè bộ mẫu. [Hướng dẫn, ước lượng RAM và giới hạn](docs/LOCAL_SIMULATION.md).
+Form báo riêng giai đoạn/tiến độ/ETA; nút **Mở nhật ký** xem lỗi chi tiết.
+Lỗi khởi động được lưu trong `simulation_setup.log` cạnh file `.bat`/`.sh`.
 
 **GPU:** dựng hình qua OpenGL; **phép tính khí quyển hiện dùng CPU**. Thư viện có
 hỗ trợ CUDA nhưng project chưa tích hợp/kiểm chứng backend GPU.

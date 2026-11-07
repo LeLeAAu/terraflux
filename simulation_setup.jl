@@ -3,8 +3,10 @@ using Pkg
 using GLMakie,TOML,Printf,Dates
 include("src/batch.jl")
 using .TerraFluxBatch,.TerraFluxBatch.TerraFluxExperimentConfig
+include("src/local_open.jl")
+using .TerraFluxLocalOpen
 
-function build_simulation_setup(;root=joinpath(@__DIR__,"sessions","generated"))
+function build_simulation_setup(;root=joinpath(@__DIR__,"sessions","generated"),open_path=open_local_path)
     set_theme!(theme_dark();fontsize=15,textcolor="#e8eef5")
     fig=Figure(size=(850,730),backgroundcolor="#101722")
     Label(fig[1,1:2],"TERRAFLUX / TẠO MÔ PHỎNG",fontsize=25,color="#66ded0",font=:bold)
@@ -58,7 +60,11 @@ function build_simulation_setup(;root=joinpath(@__DIR__,"sessions","generated"))
         end
     end
     on(stop.clicks) do _
-        job[]===nothing || stop_batch!(job[])
+        try
+            job[]===nothing || stop_batch!(job[])
+        catch err
+            status[]="Không thể dừng phiên: "*first(sprint(showerror,err),220)
+        end
     end
     on(openlog.clicks) do _
         try
@@ -70,13 +76,7 @@ function build_simulation_setup(;root=joinpath(@__DIR__,"sessions","generated"))
                 setuplog = joinpath(@__DIR__, "simulation_setup.log")
                 target = isfile(setuplog) ? setuplog : @__DIR__
             end
-            if Sys.iswindows()
-                run(`cmd /c start "" "$target"`; wait=false)
-            elseif Sys.isapple()
-                run(`open "$target"`; wait=false)
-            else
-                run(`xdg-open "$target"`; wait=false)
-            end
+            open_path(target)
         catch err
             status[]="Không thể mở nhật ký: "*sprint(showerror,err)
         end
@@ -91,10 +91,21 @@ function build_simulation_setup(;root=joinpath(@__DIR__,"sessions","generated"))
             status[] = get(s, "error", "Đã dừng bởi người dùng.")
         elseif state == "error"
             err_text = get(s, "error", "Tiến trình gặp lỗi.")
-            status[] = "LỖI: $err_text\n(Bấm 'Mở nhật ký' để kiểm tra chi tiết)"
+            status[] = "LỖI: $(first(err_text,280))\n(Bấm 'Mở nhật ký' để kiểm tra chi tiết)"
         else
-            prog = get(s, "progress", "")
-            if !isempty(prog)
+            phase=get(s,"phase","")
+            if phase=="loading"
+                status[]="Đang nạp thư viện / biên dịch Julia…\nNhật ký: $(job[].directory)"
+            elseif phase=="initializing"
+                status[]="Đang khởi tạo mô hình…\nNhật ký: $(job[].directory)"
+            elseif phase=="validating"
+                status[]="Tích phân $(get(s,"percent",0))% · Đang kiểm chứng đầu ra.\nChưa công bố kết quả. Nhật ký: $(job[].directory)"
+            elseif phase=="integrating"
+                eta=get(s,"eta_seconds",-1)
+                timing=eta<0 ? "ETA chưa xác định" : "ETA ước tính ~$(ceil(Int,eta/60)) phút"
+                status[]=@sprintf("Tích phân %d%% · %.1f / %.1f giờ mô hình · %s\nNhật ký: %s",s["percent"],s["hours_done"],s["hours_total"],timing,job[].directory)
+            elseif !isempty(get(s,"progress",""))
+                prog=s["progress"]
                 status[] = "Đang tính [$prog]\nNhật ký: $(job[].directory)"
             else
                 status[] = "Đang tính / lần đầu có thể mất vài phút để biên dịch.\nNhật ký: $(job[].directory)"
@@ -137,6 +148,7 @@ function launch_setup()
             end
         finally
             setup.job[]===nothing || stop_batch!(setup.job[])
+            close(screen)
         end
     catch err
         bt = catch_backtrace()

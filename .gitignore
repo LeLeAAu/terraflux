@@ -3,3 +3,6 @@
 # Keep additional local experiments out of Git; the validated 60-day demo is shipped.
 /datasets/earth_*/
 !/datasets/earth_60d/
+
+# Local startup/error logs; keep them on the machine, out of commits.
+/simulation_setup.log

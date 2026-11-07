@@ -34,6 +34,30 @@ PrimitiveWetModel, không trở thành dự báo thực tế nhờ tăng T.
 Muốn nối track, nên ghi mỗi ≤12 giờ: bộ liên kết hiện từ chối ghép hai mốc cách
 nhau >12 giờ. Chọn 24 giờ vẫn xem được trường nhưng track có thể tách ID.
 
+## Tiến độ và nhật ký
+
+Form phân biệt **nạp thư viện/biên dịch**, **khởi tạo**, **tích phân** và
+**kiểm chứng đầu ra**. Phần trăm/giờ đã tính lấy từ đồng hồ vật lý sau mỗi bước,
+cập nhật theo các ngưỡng khoảng 5%; không suy từ số dòng log hay số khung ảnh.
+**100% tích phân chưa phải hoàn tất**: phải qua kiểm chứng trước khi mở kết quả.
+ETA là ước lượng theo tốc độ đã đo, có thể thay đổi mạnh khi bước đầu còn biên dịch.
+
+Bấm **Mở nhật ký** để mở `worker.log` của phiên hiện tại. Khi chưa tạo phiên,
+nút mở `simulation_setup.log` cạnh launcher (hoặc thư mục repo nếu chưa có log).
+Trên Windows, file log được mở bằng Notepad với đường dẫn là đối số riêng.
+
+- `simulation_setup.log`: stdout/stderr của cả khởi động, cài/nạp thư viện và
+  GUI; lỗi xảy ra trước khi cửa sổ xuất hiện cũng được giữ. Launcher ghi nối tiếp.
+- `worker.log`: cấu hình, lệnh chạy, các giai đoạn, tiến độ và bốn bước kiểm chứng;
+  lỗi có stacktrace đầy đủ. Mỗi phiên có log riêng.
+- `status.toml`: trạng thái máy đọc được, giai đoạn, phần trăm, giờ mô hình và
+  ETA khi có; chỉ có `output_path` sau khi kiểm chứng thành công.
+
+Worker thoát bất thường sẽ báo exit code và đoạn cuối log, kể cả khi status
+bị thiếu/hỏng. Form chỉ đọc tối đa phần cuối 64 KiB để lấy thông tin lỗi của log
+lớn. Log khởi động là file cục bộ bị Git bỏ qua; không cần commit log mỗi lần mở.
+Nếu cần báo lỗi, gửi đoạn lỗi trong log.
+
 ## Dừng và kết quả
 
 **Dừng** hoặc đóng form sẽ dừng tiến trình do form đó tạo, giữ nhật ký/đầu ra
@@ -68,3 +92,16 @@ Có thể chạy hồi quy live với tệp chất lượng khác đã tạo (Li
 ```sh
 TERRAFLUX_TEST_DATA=/path/to/output.nc julia --threads=2 --project=. test/live_viewer_smoke.jl
 ```
+
+
+Kiểm tra tiến độ và các đường lỗi (không cần màn hình):
+
+```sh
+julia --project=. test/model_progress.jl
+julia --project=. test/batch_status.jl
+julia --project=. test/batch_worker_errors.jl
+```
+
+Kiểm thử form có màn hình/OpenGL ở `test/setup_viewer.jl` chạy mô hình thật
+với một luồng CPU, đọc tiến độ, chọn log, kiểm chứng, giữ kết quả khi dừng sau
+hoàn tất và hủy một phiên mới. Windows chưa được chạy trực tiếp trong cloud Linux.

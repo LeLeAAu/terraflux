@@ -3,6 +3,8 @@ using SpeedyWeather, Dates, Random, TOML
 using SpeedyWeather: NCDataset, SurfacePressureOutput
 include("src/experiment_config.jl")
 using .TerraFluxExperimentConfig
+include("src/model_progress.jl")
+using .TerraFluxModelProgress
 
 function glog(msg)
     ts = Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS")
@@ -10,8 +12,9 @@ function glog(msg)
     flush(stdout)
 end
 
-function generate_long_run(days=60,directory=joinpath(@__DIR__,"datasets","earth_$(days)d");truncation=32,layers=8,output_hours=6,seed=20261107)
+function generate_long_run(days=60,directory=joinpath(@__DIR__,"datasets","earth_$(days)d");truncation=32,layers=8,output_hours=6,seed=20261107,on_progress=_->nothing)
     cfg=experiment_config(;days,truncation,layers,output_hours,seed)
+    on_progress((phase="initializing",percent=0))
     glog("Khởi tạo cấu hình: $days ngày | T$(cfg.truncation) | $(cfg.layers) tầng sigma | ghi mỗi $(cfg.output_hours)h | seed=$(cfg.seed)")
     isdir(directory) && !isempty(readdir(directory)) && error("Thư mục đầu ra đã có dữ liệu: $directory")
     mkpath(directory)
@@ -31,40 +34,15 @@ function generate_long_run(days=60,directory=joinpath(@__DIR__,"datasets","earth
     
     glog("Bắt đầu chạy mô phỏng vật lý trong $days ngày (bước ghi $(cfg.output_hours)h)...")
     
-    # Task theo dõi tiến độ từ progress.txt của SpeedyWeather
-    stop_watcher = Ref(false)
-    last_reported_prog = Ref("")
-    prog_task = @async begin
-        while !stop_watcher[]
-            try
-                if isdefined(output, :run_path) && isdir(output.run_path)
-                    pfile = joinpath(output.run_path, "progress.txt")
-                    if isfile(pfile)
-                        lines = filter(!isempty, strip.(readlines(pfile)))
-                        if !isempty(lines)
-                            cur = lines[end]
-                            if cur != last_reported_prog[] && occursin("%", cur)
-                                last_reported_prog[] = cur
-                                glog("Tiến độ mô hình: $cur")
-                            end
-                        end
-                    end
-                end
-            catch
-            end
-            sleep(2.0)
-        end
-    end
-
-    local elapsed
-    try
-        elapsed=@elapsed run!(simulation;period=Day(days),output=true)
-    finally
-        stop_watcher[] = true
-        wait(prog_task)
-    end
+    progress=ModelProgress(started,started+Day(days),event->begin
+        glog("$(event.phase == "validating" ? "Kiểm chứng đầu ra" : "Tiến độ tích phân"): $(event.percent)% · $(round(event.hours_done;digits=2))/$(event.hours_total) giờ mô hình")
+        on_progress(event)
+    end)
+    add!(model.callbacks,:terraflux_progress=>progress)
+    elapsed=@elapsed run!(simulation;period=Day(days),output=true)
     
     finish=simulation.variables.prognostic.clock.time
+    report_progress!(progress,finish;phase="validating",force=true)
     glog("Tích phân mô hình hoàn tất sau $(round(elapsed; digits=1)) giây. Bắt đầu kiểm chứng dữ liệu...")
     
     # 1. Kiểm tra đồng hồ

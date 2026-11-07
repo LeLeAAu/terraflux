@@ -125,12 +125,16 @@ Zoom Earth vào thí nghiệm. Lưới T32 không được ghi thành ICON/GFS 1
   giữ đọc số từ ô gốc, nối kín đường đổi ngày và xử lý cực.
 - [x] Create_Simulation.bat/.sh mở form chọn ngày/T/tầng/chu kỳ lưu/CPU/seed,
   worker riêng, cấu hình/nhật ký/manifest và mở kết quả đã kiểm chứng.
+- [x] Nhật ký khởi động/worker, nút mở log, tiến độ theo đồng hồ mô hình và ETA;
+  phân biệt 100% tích phân với kiểm chứng, lỗi nạp thư viện/cấu hình được ghi
+  đúng trạng thái trên Julia 1.13, giữ kết quả khi đóng form ngay sau hoàn tất.
 - [x] Ghi rõ GPU dựng hình qua OpenGL, physics CPU; CUDA upstream có hỗ trợ nhưng
   project chưa tích hợp/kiểm chứng trên GPU thật.
 
 Hướng dẫn và giới hạn: [MAP_OVERLAYS.md](MAP_OVERLAYS.md),
 [LOCAL_SIMULATION.md](LOCAL_SIMULATION.md), [GPU_STATUS.md](GPU_STATUS.md).
-Kiểm chứng bằng extents/overlays_math/overlays_viewer/setup_viewer; đã tính thật
+Kiểm chứng bằng extents/overlays_math/overlays_viewer/setup_viewer và
+batch_status/batch_worker_errors/model_progress; đã tính thật
 T63/16 tầng/1 ngày/6 giờ và từ form T21/8 tầng/1 ngày/24 giờ. Chưa có cone dự báo,
 phân loại TC kiểm định, tránh chồng mọi nhãn hoặc tích hợp CUDA của project.
 

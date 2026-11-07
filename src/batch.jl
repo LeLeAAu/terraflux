@@ -45,9 +45,12 @@ end
 function read_recent_log_tail(logfile; max_lines=8)
     isfile(logfile) || return ""
     try
-        lines = filter(!isempty, strip.(readlines(logfile)))
-        isempty(lines) && return ""
-        return join(last(lines, min(max_lines, length(lines))), "\n")
+        open(logfile) do io
+            seekend(io);start=max(0,position(io)-65536);seek(io,start)
+            start>0 && readline(io) # Discard the first potentially partial UTF-8 line.
+            lines=filter(!isempty,strip.(readlines(io)))
+            join(last(lines,min(max_lines,length(lines))),"\n")
+        end
     catch
         return ""
     end
@@ -61,12 +64,11 @@ function read_worker_progress(output_dir)
                 prog_file = joinpath(entry, "progress.txt")
                 if isfile(prog_file)
                     lines = filter(!isempty, strip.(readlines(prog_file)))
-                    if !isempty(lines)
-                        last_line = lines[end]
-                        # Ví dụ: "  35%, ETA: 0:12:04, ,   Inf millenia/day"
-                        # Rút gọn để hiển thị đẹp
-                        m = match(r"(\d+%\s*,\s*ETA:[^,]+)", last_line)
-                        return m !== nothing ? strip(m.captures[1]) : last_line
+                    for line in Iterators.reverse(lines)
+                        m=match(r"^(\d{1,3})%\s*,\s*ETA:\s*([^,]+)",line)
+                        if m!==nothing && 0<=parse(Int,m.captures[1])<=100
+                            return "$(m.captures[1])%, ETA: $(strip(m.captures[2]))"
+                        end
                     end
                 end
             end
@@ -84,7 +86,10 @@ function batch_status(job)
             status=TOML.parsefile(joinpath(job.directory,"status.toml"))
             break
         catch
-            attempt==4 && rethrow()
+            if attempt==4
+                process_exited(job.process) || rethrow()
+                break # Recover a dead worker's error from its log even if status is corrupt/missing.
+            end
             sleep(0.01)
         end
     end
@@ -92,7 +97,8 @@ function batch_status(job)
         status = Dict{String,Any}("state" => "starting")
     end
 
-    if process_exited(job.process) && !(get(status, "state", "") in ("complete", "error", "stopped"))
+    state=get(status,"state","")
+    if process_exited(job.process) && !(state in ("error","stopped")) && (state!="complete" || !success(job.process))
         exitcode = job.process.exitcode
         tail_log = read_recent_log_tail(joinpath(job.directory, "worker.log"))
         err_msg = "Tiến trình kết thúc ngoài dự kiến (exit code: $exitcode)."
@@ -105,7 +111,7 @@ function batch_status(job)
     end
 
     # Nếu đang chạy, bổ sung thông tin tiến trình thực tế từ progress.txt
-    if get(status, "state", "") == "running"
+    if get(status, "state", "") == "running" && !haskey(status,"percent")
         prog = read_worker_progress(joinpath(job.directory, "output"))
         if !isempty(prog)
             status["progress"] = prog
@@ -117,6 +123,16 @@ end
 
 function stop_batch!(job)
     if process_running(job.process)
+        # A validated worker may need a moment to exit after writing "complete".
+        # Closing the form then must not turn its finished output into a cancelled run.
+        terminal=try
+            get(batch_status(job),"state","") in ("complete","error")
+        catch
+            false # Broken metadata must never prevent cancellation of a live process.
+        end
+        if terminal
+            timedwait(()->process_exited(job.process),2;pollint=0.02)==:ok && return
+        end
         kill(job.process)
         wait(job.process)
         logfile = joinpath(job.directory, "worker.log")

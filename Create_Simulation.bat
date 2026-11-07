@@ -17,11 +17,12 @@ echo [ERROR] Khong tim thay Julia trong PATH hoac %%USERPROFILE%%\.juliaup\bin\j
 pause
 exit /b 1
 :found
-echo Julia runtime: %JULIA_CMD% >> "%LOG_FILE%" 2>&1
+echo Julia runtime: "%JULIA_CMD%" >> "%LOG_FILE%" 2>&1
 "%JULIA_CMD%" --version >> "%LOG_FILE%" 2>&1
 "%JULIA_CMD%" --version
 echo Dang mo TerraFlux. Lan dau can Internet de cai thu vien va co the mat vai phut.
-"%JULIA_CMD%" --threads=2 --project="%~dp0." "%~dp0simulation_setup.jl" --setup
+echo Nhat ky khoi dong va loi: "%LOG_FILE%"
+"%JULIA_CMD%" --threads=2 --project="%~dp0." "%~dp0simulation_setup.jl" --setup >> "%LOG_FILE%" 2>&1
 if errorlevel 1 (
     echo.
     echo [ERROR] TerraFlux Create_Simulation thoat voi ma loi %ERRORLEVEL% >> "%LOG_FILE%" 2>&1

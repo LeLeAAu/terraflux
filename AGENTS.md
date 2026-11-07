@@ -72,3 +72,13 @@ T21/32/63/85, 8/16/24/32 layers, cadence/CPU threads/seed. See
 only advertise fully validated output; live uses matching grid metadata.
 Physics still runs CPU. OpenGL rendering and upstream CUDA capabilities must
 not be described as verified project GPU compute; see `docs/GPU_STATUS.md`.
+
+
+Batch progress is emitted by `src/model_progress.jl` after completed model
+steps, not by an async watcher sharing a CPU-bound integration task. Keep
+loading/initializing/integrating/validating distinct; 100% integration does not
+certify output. Batch workers enter the latest Julia method world after runtime
+includes, including when recording errors. Preserve full log backtraces and
+structured error status; startup stdout/stderr must reach simulation_setup.log
+before GUI imports. Local logs stay out of Git. Cancellation must work even
+with broken metadata and must preserve a completed worker exiting normally.
