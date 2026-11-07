@@ -1,6 +1,6 @@
 using Pkg
 "--setup" in ARGS && Pkg.instantiate()
-using GLMakie,TOML,Printf
+using GLMakie,TOML,Printf,Dates
 include("src/batch.jl")
 using .TerraFluxBatch,.TerraFluxBatch.TerraFluxExperimentConfig
 
@@ -28,7 +28,8 @@ function build_simulation_setup(;root=joinpath(@__DIR__,"sessions","generated"))
     buttons=GridLayout(fig[11,1:2])
     runbutton=Button(buttons[1,1],label="Tạo và chạy",buttoncolor="#213044",labelcolor="#e8eef5")
     stop=Button(buttons[1,2],label="Dừng",buttoncolor="#213044",labelcolor="#e8eef5")
-    openresult=Button(buttons[1,3],label="Mở kết quả",buttoncolor="#213044",labelcolor="#e8eef5")
+    openlog=Button(buttons[1,3],label="Mở nhật ký",buttoncolor="#213044",labelcolor="#e8eef5")
+    openresult=Button(buttons[1,4],label="Mở kết quả",buttoncolor="#213044",labelcolor="#e8eef5")
     status=Observable("Sẵn sàng. Mỗi lần tạo dùng thư mục mới, có cấu hình và nhật ký.")
     Label(fig[12,1:2],status,fontsize=13,tellwidth=false,justification=:left,word_wrap=true)
     job=Ref{Union{Nothing,BatchJob}}(nothing)
@@ -59,13 +60,46 @@ function build_simulation_setup(;root=joinpath(@__DIR__,"sessions","generated"))
     on(stop.clicks) do _
         job[]===nothing || stop_batch!(job[])
     end
+    on(openlog.clicks) do _
+        try
+            target = nothing
+            if job[] !== nothing
+                logf = joinpath(job[].directory, "worker.log")
+                target = isfile(logf) ? logf : job[].directory
+            else
+                setuplog = joinpath(@__DIR__, "simulation_setup.log")
+                target = isfile(setuplog) ? setuplog : @__DIR__
+            end
+            if Sys.iswindows()
+                run(`cmd /c start "" "$target"`; wait=false)
+            elseif Sys.isapple()
+                run(`open "$target"`; wait=false)
+            else
+                run(`xdg-open "$target"`; wait=false)
+            end
+        catch err
+            status[]="Không thể mở nhật ký: "*sprint(showerror,err)
+        end
+    end
     function poll!()
         job[]===nothing && return
         s=batch_status(job[])
         state=s["state"]
-        status[]=state=="complete" ? "Đã hoàn tất và kiểm chứng. Bấm Mở kết quả.\n$(s["output_path"])" :
-            state in ("error","stopped") ? get(s,"error",state) :
-            "Đang tính / lần đầu có thể mất vài phút để biên dịch.\nNhật ký: $(job[].directory)"
+        if state == "complete"
+            status[] = "Đã hoàn tất và kiểm chứng. Bấm Mở kết quả.\n$(s["output_path"])"
+        elseif state == "stopped"
+            status[] = get(s, "error", "Đã dừng bởi người dùng.")
+        elseif state == "error"
+            err_text = get(s, "error", "Tiến trình gặp lỗi.")
+            status[] = "LỖI: $err_text\n(Bấm 'Mở nhật ký' để kiểm tra chi tiết)"
+        else
+            prog = get(s, "progress", "")
+            if !isempty(prog)
+                status[] = "Đang tính [$prog]\nNhật ký: $(job[].directory)"
+            else
+                status[] = "Đang tính / lần đầu có thể mất vài phút để biên dịch.\nNhật ký: $(job[].directory)"
+            end
+        end
         s
     end
     on(openresult.clicks) do _
@@ -81,19 +115,41 @@ function build_simulation_setup(;root=joinpath(@__DIR__,"sessions","generated"))
         end
     end
     update_estimate!()
-    (;fig,days,resolution,levels,interval,threads,seed,destination,estimate,runbutton,stop,openresult,status,job,poll!,config)
+    (;fig,days,resolution,levels,interval,threads,seed,destination,estimate,runbutton,stop,openlog,openresult,status,job,poll!,config)
 end
+
 function launch_setup()
-    setup=build_simulation_setup();screen=display(setup.fig)
+    setuplog = joinpath(@__DIR__, "simulation_setup.log")
     try
-        while isopen(screen)
-            sleep(0.25)
-            try;setup.poll!();catch err;setup.status[]=first(sprint(showerror,err),220);end
+        open(setuplog, "a") do io
+            println(io, "[$(Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS"))] Khởi chạy simulation_setup GUI...")
+            flush(io)
         end
-    finally
-        setup.job[]===nothing || stop_batch!(setup.job[])
+        setup=build_simulation_setup();screen=display(setup.fig)
+        try
+            while isopen(screen)
+                sleep(0.25)
+                try
+                    setup.poll!()
+                catch err
+                    setup.status[]=first(sprint(showerror,err),220)
+                end
+            end
+        finally
+            setup.job[]===nothing || stop_batch!(setup.job[])
+        end
+    catch err
+        bt = catch_backtrace()
+        open(setuplog, "a") do io
+            println(io, "\n[$(Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS"))] [LỖI KHỞI ĐỘNG GUI]")
+            showerror(io, err, bt)
+            println(io, "\n" * "="^70)
+            flush(io)
+        end
+        rethrow()
     end
 end
+
 if abspath(PROGRAM_FILE)==@__FILE__
     launch_setup()
 end
