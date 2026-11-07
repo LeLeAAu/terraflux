@@ -5,7 +5,8 @@ if "--setup" in ARGS
 end
 include(joinpath(@__DIR__, "src", "viewer.jl"))
 args = filter(x -> x != "--setup", ARGS)
-path = isempty(args) ? joinpath(@__DIR__, "run_0001", "output.nc") : abspath(first(args))
+long_sample=joinpath(@__DIR__,"datasets","earth_60d","run_0001","output.nc")
+path = isempty(args) ? (isfile(long_sample) ? long_sample : joinpath(@__DIR__,"run_0001","output.nc")) : abspath(first(args))
 try
     TerraFluxViewer.launch(path)
 catch err

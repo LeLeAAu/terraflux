@@ -4,6 +4,7 @@ include(joinpath(@__DIR__, "..", "src", "viewer.jl"))
 using .TerraFluxViewer
 using .TerraFluxViewer.TerraFluxData
 using .TerraFluxViewer.TerraFluxGlobe
+using .TerraFluxViewer.TerraFluxWeatherStyle
 using .TerraFluxViewer: advance_playback!
 path = joinpath(@__DIR__, "..", "run_0001", "output.nc")
 screenshot = isempty(ARGS) ? nothing : abspath(first(ARGS))
@@ -11,6 +12,7 @@ GLMakie.activate!()
 data = load_weather(path)
 viewer = build_viewer(data)
 screen = display(viewer.fig)
+viewer.regionmenu.i_selected[]=1
 try
     # Exercise the same observable callbacks as the controls, then render a frame.
     for f in FIELDS
@@ -18,8 +20,8 @@ try
         viewer.layermenu.i_selected[] = 1
         set_close_to!(viewer.slider, length(viewer.slider.range[]))
         viewer.selected[] = (1, 1)
-        @assert occursin(field_unit(f), viewer.pointtext[])
-        @assert viewer.mapvalues[][1:end-1, :] == frame(data, f, 1, length(data.times))
+        @assert occursin(display_unit(f), viewer.pointtext[])
+        @assert isequal(viewer.mapvalues[][1:end-1, :],display_frame(data,f,1,length(data.times)))
     end
     viewer.fieldmenu.i_selected[] = 1
     viewer.layermenu.i_selected[] = length(data.layers)
@@ -68,7 +70,7 @@ try
             viewer.fieldmenu.i_selected[] = findfirst(==(f), FIELDS)
             viewer.layermenu.i_selected[] = 1
             set_close_to!(viewer.slider, length(data.times))
-            @test viewer.vertexcolors[] == globe_colors(frame(data,f,1,length(data.times)))
+            @test isequal(viewer.vertexcolors[],globe_colors(display_frame(data,f,1,length(data.times))))
         end
         viewer.fieldmenu.i_selected[] = 1
         viewer.layermenu.i_selected[] = length(data.layers)

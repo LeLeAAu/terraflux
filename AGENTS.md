@@ -44,3 +44,14 @@ Close open dropdowns on mode changes and test actual pointer interactions.
 Storm icon art/animation settings live in `assets/storm_tracker/style.toml`;
 procedural drawing and PNG frame selection live in `src/storm_icons.jl`. Keep
 these rendering settings independent of simulation state and playback speed.
+
+Weather palettes/ranges and particle settings live in `assets/weather/style.toml`;
+see `docs/WEATHER_MAPS.md`. Display wind speed in km/h without changing model u/v
+(m/s). RH needs actual surface pressure (`pres`) and sigma-level temperature/q,
+never substitute MSLP. Old datasets without surface pressure report missing RH.
+Wind particles visualize the selected snapshot and do not advance simulation
+time; keep data, missing-value handling and view input scopes independent of art.
+The default shipped dataset is `datasets/earth_60d/run_0001/output.nc` (60 days,
+241 frames); retain the original 10-day dataset. New live sessions support 10/30/60
+days, frozen in their creation config. Read the experiment manifest before
+describing run provenance; this is an idealized experiment, not observed weather.

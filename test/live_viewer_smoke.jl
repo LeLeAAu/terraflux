@@ -1,5 +1,5 @@
 # End-to-end GUI test with a real worker, display and OpenGL required.
-using GLMakie, Test, Dates
+using GLMakie, Test, Dates, TOML
 include(joinpath(@__DIR__,"..","src","viewer.jl"))
 using .TerraFluxViewer
 using .TerraFluxViewer.TerraFluxData
@@ -25,12 +25,16 @@ try
         @test occursin("Phiên mới",viewer.livestatus[])
         viewer.newrun.clicks[] += 1
         @test viewer.session[] !== nothing
+        @test viewer.durationmenu.selection[]==60
+        @test TOML.parsefile(joinpath(viewer.session[].directory,"config.toml"))["max_chunks"]==240
         await_gui(s -> s !== nothing && s["state"] == "paused")
         viewer.selected[] = (60,30)
         viewer.stepmodel.clicks[] += 1
         await_gui(s -> s["state"] == "paused" && s["completed"] == 1)
         @test viewer.history[] !== nothing
         @test length(viewer.history[].times) == 2
+        @test haskey(viewer.history[].fields,:pres)
+        @test all(isnan,frame(viewer.history[],:rh,8,1))
         @test viewer.time[] == 2
         @test viewer.slider.range[] == 1:2
         @test viewer.selected[] == (60,30)
@@ -63,6 +67,8 @@ try
         await_gui(s -> s["state"] == "paused" && s["completed"] == 2)
         @test viewer.time[] == 3
         @test viewer.history[].times[end]-viewer.history[].times[1] == Hour(12)
+        @test size(viewer.history[].fields[:pres],3)==3
+        @test count(isfinite,frame(viewer.history[],:rh,8,3))>0
         viewer.viewmenu.i_selected[]=3
         viewer.tracker.source_menu.i_selected[]=2
         await_gui(s -> viewer.tracker.catalog[] isa ModelStormSet && length(viewer.tracker.catalog[].reports)==3)

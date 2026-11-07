@@ -1,0 +1,35 @@
+Starting SpeedyWeather.jl run_0001 on Sat, 07 Nov 2026 04:19:17
+Integrating:
+SpectralGrid{Spectrum{...}, OctahedralGaussianGrid{...}}
+├ Number format: Float32
+├ Spectral:      T32 LowerTriangularMatrix, 560 harmonics
+├ Grid:          48-ring OctahedralGaussianGrid, 3168 grid points
+├ Resolution:    3.61°, 401km (at 6371km radius)
+├ Vertical:      8-layer atmosphere
+└ Architecture:  CPU using Array
+Time: 60.0 days at Δt = 2400.0s
+
+All data will be stored in /workspace/terraflux/datasets/earth_60d/run_0001
+
+  5%, ETA: 0:02:00, , 744632.60 millenia/day
+ 10%, ETA: 0:01:09, , 1489265.20 millenia/day
+ 15%, ETA: 0:00:51, , 2233897.80 millenia/day
+ 20%, ETA: 0:00:41, , 2978530.40 millenia/day
+ 25%, ETA: 0:00:35, , 3723163.00 millenia/day
+ 30%, ETA: 0:00:30, , 4467795.60 millenia/day
+ 35%, ETA: 0:00:26, , 5212428.20 millenia/day
+ 40%, ETA: 0:00:23, , 5957060.80 millenia/day
+ 45%, ETA: 0:00:20, , 6701693.40 millenia/day
+ 50%, ETA: 0:00:18, , 7446326.01 millenia/day
+ 55%, ETA: 0:00:16, , 8190958.61 millenia/day
+ 60%, ETA: 0:00:14, , 8935591.21 millenia/day
+ 65%, ETA: 0:00:12, , 9680223.81 millenia/day
+ 70%, ETA: 0:00:10, , 10424856.41 millenia/day
+ 75%, ETA: 0:00:08, , 11169489.01 millenia/day
+ 80%, ETA: 0:00:07, , 11914121.61 millenia/day
+ 85%, ETA: 0:00:05, , 12658754.21 millenia/day
+ 90%, ETA: 0:00:03, , 13403386.81 millenia/day
+ 95%, ETA: 0:00:02, , 14148019.41 millenia/day
+100%, ETA: 0:00:00, , 14892652.01 millenia/day
+
+Integration done in empty period.

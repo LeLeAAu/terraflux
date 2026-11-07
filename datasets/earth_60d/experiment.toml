@@ -1,0 +1,15 @@
+layers = 8
+julia_version = "1.13.3"
+purpose = "Idealized model experiment, not a weather forecast"
+truncation = 32
+finish = "2000-03-01T00:00:00"
+output_hours = 6
+days = 60
+netcdf = "run_0001/output.nc"
+rng_seed = 20261107
+elapsed_seconds = 95.175993043
+frames = 241
+validation = "All saved temp/u/v/humid finite; MSLP and surface pressure finite after initialization; final state finite and T>0 K"
+model = "PrimitiveWetModel"
+bytes = 54905290
+start = "2000-01-01T00:00:00"

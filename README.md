@@ -2,7 +2,7 @@
 
 Trình quan sát khí quyển từ dữ liệu mô phỏng SpeedyWeather. Bản V1 hiện tại mở dữ liệu NetCDF đã ghi, không chạy lại mô phỏng khi kéo thời gian.
 
-![Giao diện TerraFlux](docs/viewer.png)
+![Giao diện TerraFlux](docs/weather_wind.png)
 
 ## Mở trên Windows
 
@@ -12,7 +12,12 @@ Trình quan sát khí quyển từ dữ liệu mô phỏng SpeedyWeather. Bản 
 
 Lần đầu cần Internet để Julia cài thư viện và biên dịch; cửa sổ dòng lệnh sẽ hiện tiến trình. Những lần sau dùng lại bộ nhớ đệm. Giao diện cần driver đồ họa hỗ trợ **OpenGL 3.3**. Nếu mở lỗi, cửa sổ dòng lệnh sẽ giữ lại thông báo để kiểm tra.
 
-Mặc định mở `run_0001/output.nc` đi kèm repo. Có thể kéo thả một tệp `output.nc` khác lên `Open_TerraFlux.bat` để mở tệp đó. Đường dẫn chứa dấu cách được hỗ trợ. Tệp cần theo cấu trúc SpeedyWeather của dự án: `lon`, `lat`, `layer`, `time`, `temp`, `u`, `v`, `humid`, `mslp`.
+Mặc định mở bộ **60 ngày / 241 khung** tại `datasets/earth_60d/run_0001/output.nc`
+đã được tính sẵn; bạn không cần chạy lại mô hình để xem. Nếu chưa có bộ này,
+app dùng `run_0001/output.nc` cũ (10 ngày). Có thể kéo thả một tệp `output.nc`
+khác lên `Open_TerraFlux.bat`; đường dẫn chứa dấu cách được hỗ trợ. Tệp cần
+`lon`, `lat`, `layer`, `time`, `temp`, `u`, `v`, `humid`, `mslp`; `pres` bổ sung
+áp suất bề mặt để tính RH. Đây là thí nghiệm khí quyển T32, không phải dự báo.
 
 Linux/macOS, với Julia trong PATH:
 
@@ -29,9 +34,26 @@ julia --project=. viewer.jl --setup
 julia --project=. viewer.jl /path/to/output.nc
 ```
 
+## Bản đồ khí tượng và gió chuyển động
+
+- Bảng màu theo phong cách ảnh tham chiếu: nhiệt độ −30…50 °C, tốc độ gió
+  0…120 km/h, RH 0…100%, áp suất 970…1045 hPa; có menu **Theo dữ liệu**.
+- **Hạt gió** có vệt trắng, đọc u/v đúng tầng/thời điểm, hoạt động trên 2D/3D.
+  Có thể xem hướng gió khi tạm dừng thời gian; chuyển động này là hiển thị dòng
+  gió snapshot, không làm mô phỏng tiến lên. [Video minh họa](docs/wind_animation.mp4).
+- **Mượt màu 2D**, đường đẳng áp 4 hPa, chọn vùng Châu Á–Thái Bình Dương/toàn cầu.
+- Độ ẩm tương đối tính từ q/T/**áp suất bề mặt thực** theo tầng sigma; tệp cũ
+  thiếu áp suất bề mặt ghi thiếu RH. Độ ẩm riêng g/kg vẫn có mục riêng.
+- Chỉnh màu/thang đo/số hạt/độ dài vệt/tốc độ trong
+  [`assets/weather/style.toml`](assets/weather/style.toml), rồi mở lại app.
+
+Ảnh bốn trường, công thức, cách dùng và tái tạo bộ 60 ngày ở
+**[WEATHER_MAPS.md](docs/WEATHER_MAPS.md)**. Bộ mới giữ T32/8 tầng, ghi mỗi 6 giờ,
+có cấu hình/kiểm chứng/restart đi kèm tại `datasets/earth_60d/`.
+
 ## Storm Tracker — kịch bản và ứng viên từ mô hình
 
-Chọn **Storm Tracker** trong menu góc trên phải. Với dữ liệu mẫu, kéo thanh thời gian tới **2000-01-04 00:00** (khung 13/41) để xem hai hệ thống cùng hoạt động, hoặc bấm **Tới mốc đầu** để bắt đầu từ ngày 1.
+Chọn **Storm Tracker** trong menu góc trên phải. Với dữ liệu mẫu, kéo thanh thời gian tới **2000-01-04 00:00** (khung 13) để xem hai hệ thống cùng hoạt động, hoặc bấm **Tới mốc đầu** để bắt đầu từ ngày 1.
 
 ![Storm Tracker](docs/storm_tracker.png)
 
@@ -88,7 +110,7 @@ Sửa **[`assets/storm_tracker/style.toml`](assets/storm_tracker/style.toml)** r
 
 Dải **MÔ PHỎNG MỚI** nằm ngay phía trên phần phát lại:
 
-1. Bấm **Phiên mới** để khởi tạo một thí nghiệm khí quyển T32, 8 tầng từ điều kiện mặc định của SpeedyWeather. Đây là phiên độc lập, không tiếp tục từ khung dữ liệu đang xem.
+1. Chọn thời lượng **10/30/60 ngày**, rồi bấm **Phiên mới** để khởi tạo thí nghiệm T32, 8 tầng từ điều kiện mặc định SpeedyWeather. Thời lượng áp dụng khi tạo phiên; đây là phiên độc lập, không tiếp tục từ khung đang xem.
 2. Chờ trạng thái **Đã tạm dừng**, rồi bấm **+6 giờ** để tính một bước, hoặc **Chạy** để tính liên tiếp.
 3. **Tạm dừng** yêu cầu dừng sau mốc 6 giờ đang tính. Trong lúc chờ, giao diện báo lệnh chưa xử lý; nó không hủy nửa chừng một bước.
 4. **Kết thúc** đóng phiên sau mốc đang tính. Sau đó có thể tạo phiên khác.
@@ -96,7 +118,7 @@ Dải **MÔ PHỎNG MỚI** nằm ngay phía trên phần phát lại:
 Các nút này điều khiển **phép tính vật lý**. Nút **Phát/Dừng** và thanh thời gian bên dưới chỉ phát lại dữ liệu đã ghi. Mốc mới tự xuất hiện trên bản đồ/địa cầu sau mỗi 6 giờ tính xong; khi xem nguồn phiên đang chạy, giao diện theo mốc mới nhất. Có thể tạm dừng để xem lại các mốc cũ. Menu nguồn cho phép trở về **Tệp đã mở** trong khi phiên tiếp tục tính.
 
 - Bước tính đầu tiên của mỗi tiến trình phiên mới có thể mất vài phút để Julia biên dịch. Cửa sổ vẫn xoay bản đồ/địa cầu và xem dữ liệu đã có được trong thời gian này. Phiên mới có thể cần Internet để SpeedyWeather tải dữ liệu điều kiện biên.
-- Mỗi phiên hiện giới hạn **10 ngày**, giữ cấu hình T32/8 tầng như bản mô phỏng đã kiểm tra. Cần mở dữ liệu mẫu cùng lưới để dùng điều khiển trực tiếp.
+- Mỗi phiên có giới hạn **10/30/60 ngày** theo lựa chọn khi tạo; giữ cấu hình T32/8 tầng. Cần mở dữ liệu cùng lưới để dùng điều khiển trực tiếp.
 - SpeedyWeather chưa tính chẩn đoán nhiệt độ sát bề mặt cần cho **áp suất quy mực biển ở mốc khởi tạo**. Giao diện phiên mới ghi rõ trường này thiếu dữ liệu tại mốc 0, không thay bằng giá trị giả. Các trường trạng thái và mọi đầu ra tại mốc đã tính từ 6 giờ trở đi đều được kiểm tra hữu hạn; phát hiện mất ổn định sẽ dừng và báo lỗi.
 - Phiên lưu ở `sessions/session_…/`: cấu hình `config.toml`, nhật ký lệnh `commands/`, trạng thái `status.toml`, lỗi/tiến trình `worker.log`, và các thư mục `run_…` chứa NetCDF cùng `restart.jld2`. `sessions/` không được đưa vào Git. NetCDF thô của đoạn đầu vẫn chứa chẩn đoán áp suất khởi tạo chưa hợp lệ; dùng các mốc từ 6 giờ để phân tích áp suất.
 - Khi đóng cửa sổ, ứng dụng yêu cầu tiến trình mô phỏng kết thúc; nếu nó còn bận sau 3 giây thì dừng tiến trình đó. Những đoạn đã hoàn tất được giữ lại; đoạn đang tính có thể chưa hoàn chỉnh. Giao diện chỉ nạp các tệp đã đóng và vượt qua kiểm tra. Chưa có chức năng khôi phục phiên từ restart trong giao diện.
@@ -110,7 +132,7 @@ Chọn **Địa cầu 3D** trong menu ở góc trên bên phải; chọn **Bản
 
 - Giữ/kéo chuột trái để xoay, cuộn chuột để thu/phóng. Camera luôn ở ngoài mặt cầu.
 - Bấm rồi thả tại chỗ trên địa cầu để đọc ô lưới gần nhất ở mặt đang nhìn. Kéo để xoay hoặc bấm vào khoảng trống không đổi điểm theo dõi.
-- Nút **Đặt lại góc nhìn** đưa địa cầu về hướng Đông Nam Á; ở bản đồ 2D nút này khôi phục phạm vi toàn cầu.
+- Nút **Đặt lại góc nhìn** đưa địa cầu về hướng Đông Nam Á; ở bản đồ 2D nút này khôi phục vùng đang chọn trong menu.
 - Các ô lưới được tô cùng giá trị với bản đồ 2D, không làm mịn màu để tạo thêm chi tiết vật lý. Hai cực dùng giá trị của hàng lưới gần nhất. Mặt cầu chỉ là cách trình bày tầng đang chọn, không biểu diễn độ cao thật của tầng sigma.
 - Đường bờ lấy từ Natural Earth; các đường kinh/vĩ tuyến giúp định hướng. Không cần tải thêm dữ liệu địa cầu.
 
@@ -118,11 +140,11 @@ Chọn **Địa cầu 3D** trong menu ở góc trên bên phải; chọn **Bản
 
 ## Sử dụng
 
-- **Trường quan sát:** nhiệt độ (°C), tốc độ gió hoặc từng thành phần gió (m/s), độ ẩm riêng (g/kg), áp suất quy về mực biển (hPa).
+- **Trường quan sát:** nhiệt độ (°C), tốc độ gió (km/h), u/v (m/s), độ ẩm riêng (g/kg), độ ẩm tương đối (%), áp suất quy mực biển (hPa).
 - **Tầng:** chọn một trong 8 tầng của dữ liệu mẫu. Sigma gần 1 là gần bề mặt, gần 0 là tầng cao. Đây không phải độ cao cố định. Áp suất quy mực biển là trường 2D, không thay đổi khi chọn tầng.
-- **Thời gian:** kéo thanh hoặc bấm nút tiến/lùi. Nút Phát/Dừng phát lại 2 khung/giây, dừng ở khung cuối. Dữ liệu mẫu có 41 khung cách nhau 6 giờ trong 10 ngày. Thời gian là thời gian vật lý của mô hình.
+- **Thời gian:** kéo thanh hoặc bấm nút tiến/lùi. Nút Phát/Dừng phát lại 2 khung/giây, dừng ở khung cuối. Bộ mới có 241 khung trong 60 ngày; bộ cũ có 41 khung trong 10 ngày, đều cách nhau 6 giờ. Thời gian là thời gian vật lý của mô hình.
 - **Đọc tại điểm:** bấm trái vào bản đồ. Dấu chấm và bảng bên trái chỉ tọa độ/giá trị tại ô lưới gần nhất; điểm được giữ khi đổi tầng, trường và thời gian. Không nội suy giá trị tại vị trí chuột.
-- **Thang màu:** mặc định giữ cùng thang cho toàn bộ thời gian của trường và tầng đang chọn. Bỏ chọn để tự co giãn theo từng khung. Gió u/v dùng thang đối xứng quanh 0.
+- **Thang màu:** mặc định dùng thang khí tượng cố định. Chọn Theo dữ liệu để dùng min/max; checkbox khóa giữ cùng thang giữa các khung, bỏ chọn để co giãn theo từng khung. Gió u/v dùng thang đối xứng quanh 0.
 - **Bản đồ:** cuộn để thu/phóng, giữ chuột phải để di chuyển; Ctrl + bấm trái để đặt lại. Phóng to không tăng độ phân giải vật lý.
 
 Phần bản đồ dùng kinh độ −180…180°, vĩ độ −90…90°, đường bờ Natural Earth được đóng gói cùng GeoMakie. Nhiệt độ trong NetCDF mẫu đã là °C, không trừ Kelvin thêm lần nữa. Độ ẩm kg/kg được đổi sang g/kg. Dữ liệu thiếu được bỏ qua khi tính thang màu/thống kê, hiện trong bảng điểm dưới dạng “Thiếu dữ liệu”.
@@ -132,10 +154,12 @@ Phần bản đồ dùng kinh độ −180…180°, vĩ độ −90…90°, đư
 - `src/data.jl`: đọc/kiểm tra NetCDF, chuẩn hóa tọa độ và đơn vị, chọn trường/tầng/thời gian.
 - `src/viewer.jl`: giao diện GLMakie, bản đồ/địa cầu, các điều khiển và phát lại.
 - `src/globe.jl`: hình học từng ô địa cầu, chuyển tọa độ và chọn mặt cầu bằng tia nhìn.
+- `src/weather_style.jl`, `src/wind_particles.jl`: bảng màu/đơn vị hiển thị và hạt gió.
 - `src/live.jl`, `src/live_worker.jl`: điều khiển tiến trình mô phỏng riêng và công bố các đoạn dữ liệu hoàn tất.
 - `src/storms.jl`, `src/tracker.jl`: dữ liệu kịch bản và giao diện Storm Tracker.
 - `viewer.jl`: điểm khởi chạy, nhận đường dẫn dữ liệu.
 - `main.jl`, `check_model.jl`: mô phỏng và kiểm tra trạng thái hiện có.
+- `generate_long_run.jl`: tạo và kiểm chứng thí nghiệm dài với đầu ra 6 giờ.
 - `note1.txt`: mục tiêu và lộ trình phát triển.
 
 Chỉnh trạng thái, khôi phục phiên trong giao diện và so sánh A/B là các mốc tiếp theo; chưa có trong bản này.
@@ -188,4 +212,12 @@ julia --project=. test/structure.jl
 julia --project=. test/classification.jl
 # Cần màn hình/OpenGL, dùng 2 luồng cho phân tích nền:
 julia --threads=2 --project=. test/detection_viewer.jl
+```
+
+Kiểm thử RH, hạt gió và giao diện màu trên bộ 60 ngày:
+
+```sh
+julia --project=. test/weather_data.jl
+# Cần màn hình/OpenGL:
+julia --threads=2 --project=. test/weather_viewer.jl
 ```

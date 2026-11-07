@@ -1,2 +1,5 @@
 # Generated interactive simulation sessions (data, restarts, command history, logs).
 /sessions/
+# Keep additional local experiments out of Git; the validated 60-day demo is shipped.
+/datasets/earth_*/
+!/datasets/earth_60d/

@@ -1,5 +1,6 @@
 # Separate Julia process: compute never blocks the GLMakie event loop.
 using SpeedyWeather, Dates, TOML
+using SpeedyWeather: SurfacePressureOutput
 include("live.jl")
 using .TerraFluxLive: atomic_toml
 include("data.jl")
@@ -16,6 +17,7 @@ function worker(directory)
         publish("starting")
         grid = SpectralGrid(truncation=config["truncation"],nlayers=config["layers"])
         model = PrimitiveWetModel(grid)
+        add!(model,SurfacePressureOutput())
         simulation = initialize!(model)
         # Runs are a new experiment, independent of the file currently being viewed.
         mode = "pause"
@@ -55,7 +57,7 @@ function worker(directory)
                 for (field,data) in chunk.fields
                     # Initial MSLP uses surface diagnostics that do not exist until physics runs.
                     # Every completed endpoint must be valid; never mask a later model failure.
-                    checked = field == :mslp ? data[:,:,end:end] : data
+                    checked = field in (:mslp,:pres) ? data[:,:,end:end] : data
                     all(isfinite,checked) || error("Đầu ra $field không hữu hạn.")
                 end
                 push!(files,abspath(path))

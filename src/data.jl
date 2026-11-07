@@ -4,10 +4,10 @@ using Dates
 export WeatherData, load_weather, frame, color_limits, nearest_cell, sample_value,
        FIELDS, field_label, field_unit, layer_label, append_weather, load_live_chunk
 
-const FIELDS = [:temp, :wind, :u, :v, :humid, :mslp]
+const FIELDS = [:temp, :wind, :u, :v, :humid, :mslp, :rh]
 const LABELS = Dict(:temp => "Nhiệt độ", :wind => "Tốc độ gió", :u => "Gió Đông–Tây (u)",
-    :v => "Gió Bắc–Nam (v)", :humid => "Độ ẩm riêng", :mslp => "Áp suất quy mực biển")
-const UNITS = Dict(:temp => "°C", :wind => "m/s", :u => "m/s", :v => "m/s", :humid => "g/kg", :mslp => "hPa")
+    :v => "Gió Bắc–Nam (v)", :humid => "Độ ẩm riêng", :mslp => "Áp suất quy mực biển", :rh=>"Độ ẩm tương đối")
+const UNITS = Dict(:temp => "°C", :wind => "m/s", :u => "m/s", :v => "m/s", :humid => "g/kg", :mslp => "hPa", :rh=>"%")
 field_label(field) = LABELS[field]
 field_unit(field) = UNITS[field]
 
@@ -55,6 +55,20 @@ function load_weather(path::AbstractString)
             name == :mslp && units == "Pa" && (values ./= 100f0)
             fields[name] = values
         end
+        if haskey(ds,"pres")
+            variable=ds["pres"]
+            unit=get(variable.attrib,"units","")
+            unit in ("Pa","hPa") || error("Đơn vị áp suất bề mặt không hỗ trợ: $unit")
+            NCDatasets.dimnames(variable)==("lon","lat","time") || error("Chiều áp suất bề mặt không hợp lệ.")
+            values=Float32.(coalesce.(variable[:,:,:],NaN32))[ix,iy,:]
+            size(values)==size(fields[:mslp]) || error("Áp suất bề mặt không khớp lưới.")
+            unit=="Pa" && (values./=100f0)
+            fields[:pres]=values
+        end
+        if get(ds.attrib,"terraflux_initial_surface_diagnostics","")=="unavailable"
+            fields[:mslp][:,:,1].=NaN32
+            haskey(fields,:pres) && (fields[:pres][:,:,1].=NaN32)
+        end
         WeatherData(abspath(path), lon, lat, layers, times, fields)
     end
 end
@@ -63,6 +77,21 @@ function frame(d::WeatherData, field::Symbol, layer::Int, time::Int)
     checkbounds(d.layers, layer)
     checkbounds(d.times, time)
     field == :wind && return hypot.(frame(d, :u, layer, time), frame(d, :v, layer, time))
+    if field==:rh
+        haskey(d.fields,:pres) && 0<d.layers[layer]<=1 || return fill(NaN32,length(d.lon),length(d.lat))
+        # RH with respect to liquid water (Bolton 1980 saturation-vapour formula).
+        # Use actual sigma-layer pressure, never MSLP as a surface-pressure substitute.
+        temperature=@view d.fields[:temp][:,:,layer,time]
+        humidity=@view d.fields[:humid][:,:,layer,time]
+        pressure=@view d.fields[:pres][:,:,time]
+        return map(temperature,humidity,pressure) do T,q,p
+            isfinite(T) && isfinite(q) && isfinite(p) && T> -100 && T<100 && q>=0 && q<1000 && p>0 || return NaN32
+            specific=Float64(q)/1000
+            vapor=specific*(d.layers[layer]*p)/(0.622+0.378specific)
+            saturation=6.112exp(17.67T/(T+243.5))
+            Float32(100vapor/saturation)
+        end
+    end
     a = d.fields[field]
     field == :mslp ? a[:, :, time] : a[:, :, layer, time]
 end
@@ -71,6 +100,8 @@ function color_limits(d, field, layer, time; locked=true)
     # Fixed across recorded times for the current field and layer.
     values = if !locked
         frame(d, field, layer, time)
+    elseif field==:rh
+        cat((frame(d,:rh,layer,t) for t in eachindex(d.times))...;dims=3)
     elseif field == :wind
         hypot.(d.fields[:u][:, :, layer, :], d.fields[:v][:, :, layer, :])
     elseif field == :mslp
@@ -102,7 +133,7 @@ function append_weather(a::WeatherData, b::WeatherData)
     length(b.times) > 1 || error("Đoạn mô phỏng không có thời gian mới.")
     fields = Dict{Symbol,Array{Float32}}()
     for f in keys(a.fields)
-        new = f == :mslp ? b.fields[f][:,:,2:end] : b.fields[f][:,:,:,2:end]
+        new = f in (:mslp,:pres) ? b.fields[f][:,:,2:end] : b.fields[f][:,:,:,2:end]
         fields[f] = cat(a.fields[f],new;dims=ndims(new))
     end
     WeatherData(b.path,a.lon,a.lat,a.layers,vcat(a.times,b.times[2:end]),fields)
@@ -113,6 +144,7 @@ end
 function load_live_chunk(path; initial=false)
     d = load_weather(path)
     initial && (d.fields[:mslp][:,:,1] .= NaN32)
+    initial && haskey(d.fields,:pres) && (d.fields[:pres][:,:,1].=NaN32)
     d
 end
 

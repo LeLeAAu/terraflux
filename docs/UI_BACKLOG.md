@@ -93,6 +93,26 @@ NetCDF, lọc nhóm, click chấm, lựa chọn, một nhãn/quỹ đạo mặc 
 Chi tiết phương pháp/giới hạn và ảnh trước khi xuất bản: `docs/MODEL_DETECTION.md`.
 Chưa hoàn thành xác nhận TC/EX, đối lưu, gió chuẩn hoặc kiểm định quan trắc.
 
+## Màu khí tượng, hạt gió và bộ dữ liệu dài hơn
+
+- [x] Bảng màu/thang cố định cho °C, km/h, RH%, MSLP hPa theo phong cách ảnh Zoom
+  Earth mới; menu thang dữ liệu, mượt màu 2D, vùng xem và đẳng áp 4 hPa có nhãn.
+- [x] Hạt gió có vệt nhạt dần trên 2D/3D, lấy u/v đúng nguồn/tầng/mốc, nội suy
+  song tuyến tính và tích phân midpoint theo metric cầu; ngắt vệt khi thiếu dữ
+  liệu/đổi mốc/qua đường đổi ngày. Đây là dòng trên snapshot, chưa phải quỹ đạo
+  khối khí theo chuỗi thời gian vật lý. Storm Tracker giữ lớp hiển thị riêng.
+- [x] RH tính bằng q/T/áp suất bề mặt thật tại tầng sigma; không dùng MSLP hoặc
+  đổi độ ẩm riêng thành %. Thiếu áp suất thì ghi thiếu. Live lưu thêm pres.
+- [x] Tính sẵn thí nghiệm 60 ngày, 241 mốc 6 giờ, có manifest/cấu hình/restart;
+  mặc định mở bộ mới. Live chọn 10/30/60 ngày khi tạo phiên, không đổi phiên cũ.
+- [x] Điểm tùy chỉnh màu/range/số hạt/vệt/tốc độ ở `assets/weather/style.toml`.
+
+Ảnh và video thật từ app, công thức/giới hạn/cách tái tạo: `docs/WEATHER_MAPS.md`.
+Bằng chứng: `test/weather_data.jl`, `test/weather_viewer.jl`, hồi quy viewer/
+tracker và `test/live_viewer_smoke.jl` với hai đoạn mô phỏng thật. Tham chiếu mới
+chỉ dùng phong cách màu/lớp dữ liệu; không nhập số, track, forecast cone hay logo
+Zoom Earth vào thí nghiệm. Lưới T32 không được ghi thành ICON/GFS 13–22 km.
+
 ## Danh sách cần làm theo tài liệu nguồn
 
 ### Đối chiếu phân loại Mỹ

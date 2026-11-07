@@ -1,0 +1,21 @@
+# Visual settings only. Restart the app after editing.
+[temperature]
+range = [-30.0, 50.0]
+colors = ["#7052a5", "#3d589b", "#328bc2", "#52bdcb", "#9ae3b5", "#fff18b", "#ffaf3d", "#ed503e", "#90004e"]
+[wind]
+# Speed is displayed in km/h; model u/v and classifications keep their original units.
+range = [0.0, 120.0]
+colors = ["#6451a3", "#527abe", "#45b4ce", "#8fd6b1", "#e5ec94", "#ffd36b", "#f38c65", "#ba2460"]
+[humidity]
+# Relative humidity (%) with respect to liquid water; requires actual surface pressure.
+range = [0.0, 100.0]
+colors = ["#db8043", "#f4c76d", "#f8edb0", "#a8e6ce", "#50c1ca", "#297b9e"]
+[pressure]
+range = [970.0, 1045.0]
+colors = ["#34469c", "#347ea8", "#79bec5", "#ecf3ed", "#f1c5ad", "#db7561", "#c73543"]
+isobar_interval_hpa = 4.0
+[particles]
+count = 1000
+trail_steps = 16
+lifetime_seconds = 4.0
+visual_seconds_per_second = 72000.0
