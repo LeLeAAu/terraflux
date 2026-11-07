@@ -188,3 +188,12 @@ result = detect_tracks(weather; config=DetectionConfig())
 
 Các giá trị mặc định được định nghĩa tập trung ở `DetectionConfig` trong
 `src/detection.jl`; thay đổi tiêu chí hiện cần sửa mã/API rồi mở lại app.
+
+
+## Bán kính vùng xoáy và lớp phủ
+
+`src/structure.jl` còn đo phạm vi gió tiếp tuyến xoáy thuận bằng các vành bốn
+phía, lưu `radius_km`, `radius_censored` và profile vào metrics từng tâm/mốc.
+Chẩn đoán không thay tiêu chí giữ tâm, phân nhóm nhiệt hay liên kết ID. Dữ liệu
+thiếu giữ thiếu; giới hạn ngoài ghi cận dưới. Phương pháp, ngưỡng, ý nghĩa cỡ
+icon và vòng địa lý được ghi ở [MAP_OVERLAYS.md](MAP_OVERLAYS.md).

@@ -55,3 +55,20 @@ The default shipped dataset is `datasets/earth_60d/run_0001/output.nc` (60 days,
 241 frames); retain the original 10-day dataset. New live sessions support 10/30/60
 days, frozen in their creation config. Read the experiment manifest before
 describing run provenance; this is an idealized experiment, not observed weather.
+
+
+Map overlays and hover are documented in `docs/MAP_OVERLAYS.md`. Keep model
+W/C/L? separate from illustrative scenarios and do not invent forecast cones.
+Vortex radii use four-quadrant tangential-wind annuli, not R34 or SSHWS. Unknown
+radii stay missing; censored extents are lower bounds. Icon pixel sizes scale
+relatively with radius; only geographic rings represent km. Hover reads the
+selected field's original nearest grid cell and must not mutate the clock/pin.
+
+The globe has display interpolation and dense spherical coastlines; preserve
+original-cell sampling, missing values, dateline closure and polar behavior.
+`Create_Simulation.bat`/`create_simulation.sh` open a form for 1–365 days,
+T21/32/63/85, 8/16/24/32 layers, cadence/CPU threads/seed. See
+`docs/LOCAL_SIMULATION.md`. Batch jobs use fresh ignored session folders and
+only advertise fully validated output; live uses matching grid metadata.
+Physics still runs CPU. OpenGL rendering and upstream CUDA capabilities must
+not be described as verified project GPU compute; see `docs/GPU_STATUS.md`.

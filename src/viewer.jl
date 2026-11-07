@@ -13,6 +13,11 @@ include("ui_scope.jl")
 using .TerraFluxUIScope
 include("storm_icons.jl")
 include("tracker.jl")
+include("map_math.jl")
+include("map_layers.jl")
+include("hover.jl")
+using .TerraFluxMapLayers
+using .TerraFluxHover
 using .TerraFluxTracker
 using .TerraFluxLive
 using .TerraFluxGlobe
@@ -32,6 +37,13 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         icon_style_path=joinpath(@__DIR__,"..","assets","storm_tracker","style.toml"),
         weather_style_path=joinpath(@__DIR__,"..","assets","weather","style.toml"))
     weatherstyle=load_weather_style(weather_style_path)
+    default_truncation=(length(d.lon),length(d.lat))==(96,48) ? 32 : 0
+    run_truncation=default_truncation
+    if isfile(d.path)
+        run_truncation=TerraFluxData.NCDataset(d.path,"r") do ds
+            Int(get(ds.attrib,"terraflux_truncation",default_truncation))
+        end
+    end
     set_theme!(theme_dark(); fontsize=15, backgroundcolor=BG, textcolor=INK,
         Axis=(backgroundcolor=PANEL, xgridcolor=(:white, 0.08), ygridcolor=(:white, 0.08)))
     fig = Figure(size=(1440, 860), figure_padding=26)
@@ -42,6 +54,8 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     resetview = Button(header[2, 2], label="Đặt lại góc nhìn", width=235, halign=:right, buttoncolor=PANEL, labelcolor=INK)
     colsize!(header, 1, Relative(0.7))
     physical_widgets = Any[]
+    overlay_open=Observable(false)
+    overlaybutton=Button(header[1,1],label="Lớp phủ bản đồ",width=235,halign=:right,buttoncolor=PANEL,labelcolor=INK)
     regionmenu=Menu(header[2,1],options=[("Toàn cầu",:global),("Châu Á–Thái Bình Dương",:asia)],
         default=2,width=235,halign=:right)
     push!(physical_widgets,regionmenu)
@@ -56,13 +70,27 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     lockrow = GridLayout(sidebar[7, 1])
     lockscale = Checkbox(lockrow[1, 1], checked=true)
     push!(physical_widgets, Label(lockrow[1, 2], "Khóa thang khi theo dữ liệu", fontsize=12, halign=:left))
-    overlays=GridLayout(sidebar[8,1])
-    windtoggle=Checkbox(overlays[1,1],checked=true)
-    isobartoggle=Checkbox(overlays[1,3],checked=true)
-    smooth=Checkbox(overlays[2,1],checked=true)
-    push!(physical_widgets,Label(overlays[1,2],"Hạt gió",fontsize=12,halign=:left))
-    push!(physical_widgets,Label(overlays[1,4],"Đẳng áp",fontsize=12,halign=:left))
-    push!(physical_widgets,Label(overlays[2,2:4],"Mượt màu 2D",fontsize=12,halign=:left))
+    overlays=GridLayout(fig[2,1],width=285,tellheight=false)
+    overlay_widgets=Any[]
+    function overlay_checkbox(row,label,checked)
+        control=Checkbox(overlays[row,1],checked=checked)
+        push!(overlay_widgets,control,Label(overlays[row,2],label,fontsize=14,halign=:left))
+        control
+    end
+    push!(overlay_widgets,Label(overlays[1,1:2],"LỚP PHỦ BẢN ĐỒ",fontsize=21,color=ACCENT,font=:bold))
+    windtoggle=overlay_checkbox(2,"Hạt gió",true)
+    systemstoggle=overlay_checkbox(3,"Hệ thống xoáy / bão",false)
+    overlaysource=Menu(overlays[4,1:2],options=[("Ứng viên từ mô hình",:model),("Kịch bản minh họa",:scenario)],default=1,width=280)
+    push!(overlay_widgets,overlaysource)
+    labelstoggle=overlay_checkbox(5,"Địa danh",true)
+    valuestoggle=overlay_checkbox(6,"Giá trị tại địa danh",false)
+    nighttoggle=overlay_checkbox(7,"Ngày / đêm (UTC mô phỏng)",false)
+    gridtoggle=overlay_checkbox(8,"Lưới tọa độ",true)
+    isobartoggle=overlay_checkbox(9,"Đẳng áp khi xem áp suất",true)
+    smooth=overlay_checkbox(10,"Mượt bản đồ 2D / 3D",true)
+    overlaystatus=Observable("Rê chuột để đọc giá trị ô gần nhất.\nBật hệ thống để thêm vùng xoáy.")
+    push!(overlay_widgets,Label(overlays[11,1:2],overlaystatus,fontsize=12,justification=:left,tellwidth=false))
+    rowgap!(overlays,12)
     push!(physical_widgets, Label(sidebar[9, 1], "03   ĐIỂM THEO DÕI", color=MUTED, fontsize=12, halign=:left))
     pointtext = Observable("Bấm vào bản đồ để chọn điểm.\nGiá trị tại ô lưới gần nhất.")
     push!(physical_widgets, Label(sidebar[10, 1], pointtext, fontsize=14, halign=:left, justification=:left))
@@ -70,15 +98,25 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     push!(physical_widgets, Label(sidebar[11, 1], stattext, fontsize=12, color=MUTED, halign=:left, justification=:left))
     gridtext = Observable("Lưới đầu ra: $(length(d.lon)) × $(length(d.lat))\n$(length(d.layers)) tầng · $(length(d.times)) thời điểm\nPhóng to không tăng độ phân giải.")
     push!(physical_widgets, Label(sidebar[12, 1], gridtext, fontsize=11, color=MUTED, halign=:left, justification=:left))
-    append!(physical_widgets,[fieldmenu,layermenu,scalemenu,lockscale,windtoggle,isobartoggle,smooth])
-    scope_widget_inputs!(physical_widgets)
+    append!(physical_widgets,[fieldmenu,layermenu,scalemenu,lockscale])
+    scope_widget_inputs!(vcat(physical_widgets,overlay_widgets,[overlaybutton]))
+    function set_panels!()
+        physical=viewmenu.selection[]!=:tracker
+        for widget in physical_widgets;widget.blockscene.visible[]=physical && !overlay_open[];end
+        for widget in overlay_widgets;widget.blockscene.visible[]=physical && overlay_open[];end
+        regionmenu.blockscene.visible[]=viewmenu.selection[]==:map
+        overlaybutton.blockscene.visible[]=physical
+        overlaybutton.label[]=overlay_open[] ? "Trường quan sát" : "Lớp phủ bản đồ"
+    end
+    on(overlaybutton.clicks) do _;overlay_open[]=!overlay_open[];set_panels!();end
     rowgap!(sidebar, 6)
+    rowsize!(sidebar,8,Fixed(0))
     maparea = GridLayout(fig[2, 2])
     title = Observable("")
     Label(maparea[1, 1:2], title, font=:bold, fontsize=16)
     ax = Axis(maparea[2, 1], xlabel="Kinh độ", ylabel="Vĩ độ", aspect=DataAspect(),
         xticks=(-180:15:180), yticks=(-90:15:90),xgridcolor=(:black,0.35),ygridcolor=(:black,0.35),
-        xgridstyle=:dot,ygridstyle=:dot)
+        xgridstyle=:dot,ygridstyle=:dot,xgridvisible=gridtoggle.checked,ygridvisible=gridtoggle.checked)
     function reset_map!()
         regionmenu.selection[]==:asia ? limits!(ax,60,180,-5,55) : limits!(ax,-180,180,-90,90)
     end
@@ -104,7 +142,12 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     unittext = Observable("°C")
     colorbar = Colorbar(maparea[2, 2], heat, label=unittext, width=16)
     helptext = Observable("Bản đồ 2D • Cuộn: thu phóng • Chuột phải: di chuyển • Bấm trái: đọc giá trị")
-    Label(maparea[3, 1:2], helptext, fontsize=11, color=MUTED)
+    helpcaption=lift(helptext,systemstoggle.checked,overlaysource.selection,viewmenu.selection) do text,enabled,source,mode
+        !enabled || mode==:tracker ? text : text*"\n"*(source==:scenario ?
+            "HỆ THỐNG: KỊCH BẢN MINH HỌA · Không phải nhận diện từ mô hình" :
+            "HỆ THỐNG: ỨNG VIÊN MÔ HÌNH W/C/L? · Không gán cấp bão SSHWS")
+    end
+    Label(maparea[3, 1:2], helpcaption, fontsize=11, color=MUTED)
     globe = LScene(maparea[2, 1]; show_axis=false)
     cam3d!(globe.scene; center=false, fixed_axis=true, zoom_shift_lookat=false,
         translation_button=false, reposition_button=false, up_key=false, down_key=false,
@@ -131,20 +174,24 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     vertexcolors = Observable(globe_colors(display_frame(d,:temp,layer[],time[])))
     mesh!(globe, Point3f.(points), [Makie.GeometryBasics.TriangleFace(f...) for f in faces];
         color=vertexcolors, colormap=cmap, colorrange=limits, shading=NoShading,
-        nan_color=:transparent)
+        nan_color=:transparent,visible=lift(!,smooth.checked))
+    smoothgeometry=smooth_globe_geometry(d.lon,d.lat;factor=length(d.lon)<=128 ? 3 : 2)
+    smoothcolors=Observable(smooth_globe_colors(frame(d,:temp,layer[],time[]),smoothgeometry))
+    mesh!(globe,Point3f.(smoothgeometry.points),[Makie.GeometryBasics.TriangleFace(f...) for f in smoothgeometry.faces];
+        color=smoothcolors,colormap=cmap,colorrange=limits,shading=NoShading,nan_color=:transparent,visible=smooth.checked)
     coastpoints = Makie.convert_arguments(Lines, GeoMakie.coastlines())[1]
-    lines!(globe, [Point3f(sphere_point(p[1],p[2];radius=1.003)) for p in coastpoints];
+    lines!(globe, Point3f.(smooth_sphere_lines(coastpoints));
         color=(:white,0.7), linewidth=0.8)
     graticule = Point3f[]
     for lat in -60:30:60
-        append!(graticule, [Point3f(sphere_point(lon,lat;radius=1.002)) for lon in -180:2:180])
+        append!(graticule, [Point3f(sphere_point(lon,lat;radius=1.006)) for lon in -180:0.5:180])
         push!(graticule, Point3f(NaN))
     end
     for lon in -180:30:150
-        append!(graticule, [Point3f(sphere_point(lon,lat;radius=1.002)) for lat in -90:2:90])
+        append!(graticule, [Point3f(sphere_point(lon,lat;radius=1.006)) for lat in -90:0.5:90])
         push!(graticule, Point3f(NaN))
     end
-    lines!(globe, graticule; color=(:white,0.15), linewidth=0.6)
+    lines!(globe, graticule; color=(:white,0.15), linewidth=0.6,visible=gridtoggle.checked)
     globe_marker = Observable(Point3f[])
     scatter!(globe, globe_marker; color=ACCENT, markersize=14, strokecolor=:black, strokewidth=2)
     reset_globe() = update_cam!(globe.scene, Vec3f(sphere_point(105,20;radius=3.5)), Vec3f(0), Vec3f(0,0,1))
@@ -196,7 +243,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         end
     end
     livepanel = GridLayout(fig[3, 1:2])
-    livestatus = Observable("MÔ PHỎNG MỚI / T32 · 8 tầng · chọn 10/30/60 ngày cho phiên mới · mỗi bước 6 giờ")
+    livestatus = Observable("MÔ PHỎNG MỚI / T$run_truncation · $(length(d.layers)) tầng · chọn 10/30/60 ngày · mỗi bước 6 giờ")
     Label(livepanel[1,1:8],livestatus;fontsize=12,color=ACCENT,halign=:left,tellwidth=false)
     sourcemenu = Menu(livepanel[2,1],options=[("Tệp đã mở",:file),("Phiên mô phỏng",:live)],default=1,width=170)
     durationmenu=Menu(livepanel[2,2],options=[("10 ngày",10),("30 ngày",30),("60 ngày",60)],default=3,width=110)
@@ -246,6 +293,38 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
             end
         end,
         on_start=timestamp -> set_close_to!(slider,argmin(abs.(d.times .- timestamp))))
+    layers=build_map_layers(ax,globe,smoothgeometry,viewmenu.selection;systems=systemstoggle.checked,
+        labels=labelstoggle.checked,values=valuestoggle.checked,night=nighttoggle.checked,style=tracker.style)
+    last_layer_result=Ref{Any}(nothing)
+    function refresh_layers!()
+        set=nothing
+        if systemstoggle.checked[]
+            result=overlaysource.selection[]==:scenario ? tracker.scenario : model_provider()
+            last_layer_result[]=result
+            if result isa TerraFluxStorms.StormScenario
+                set=result;overlaystatus[]="KỊCH BẢN MINH HỌA\nKhông phải nhận diện từ mô hình."
+            elseif result isa ModelStormSet
+                set=result;overlaystatus[]="Ứng viên mô hình W/C/L?\nVùng gió xoáy sơ bộ, không SSHWS."
+            else
+                overlaystatus[]=result isa AbstractString ? first(result,180) : "Đang phân tích áp suất/gió/nhiệt…"
+            end
+        else
+            overlaystatus[]="Rê chuột để đọc trường đang chọn.\nBật hệ thống để thêm vùng xoáy."
+        end
+        layers.update!(d,mapvalues[],field[],layer[],d.times[time[]],set)
+        layers.omitted[]>0 && (overlaystatus[]*="\nẨn $(layers.omitted[]) tâm: giới hạn 256 icon.")
+    end
+    menus=(viewmenu,fieldmenu,layermenu,scalemenu,regionmenu,sourcemenu,durationmenu,overlaysource,
+        tracker.source_menu,tracker.systemmenu,tracker.unitmenu,tracker.filter_menu,tracker.region)
+    hover=build_hover(fig,ax,globe,tracker,viewmenu.selection,menus,layers,systemstoggle.checked;
+        get_data=()->d,get_field=()->field[],get_layer=()->layer[],get_time=()->d.times[time[]],get_values=()->mapvalues[])
+    function poll_layers!()
+        systemstoggle.checked[] && overlaysource.selection[]==:model || return
+        result=model_provider()
+        if result!==last_layer_result[]
+            refresh_layers!();hover.update!()
+        end
+    end
     on(viewmenu.selection) do mode
         is_globe = mode == :globe
         is_tracker = mode == :tracker
@@ -254,8 +333,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         globe.blockscene.visible[] = is_globe
         globe.scene.visible[] = is_globe
         colorbar.blockscene.visible[] = !is_tracker
-        for widget in physical_widgets; widget.blockscene.visible[] = !is_tracker; end
-        regionmenu.blockscene.visible[]=mode==:map
+        overlay_open[]=false;set_panels!();hover.visible[]=false
         tracker.set_active!(is_tracker)
         helptext[] = is_tracker ? "Chọn nguồn trong Storm Tracker • Biểu tượng là vị trí đại diện, không chỉ bán kính gió" :
             is_globe ? "Địa cầu 3D • Kéo chuột trái: xoay • Cuộn: thu phóng • Bấm trái: đọc giá trị" :
@@ -276,6 +354,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         a = display_frame(d,f,k,t)
         mapvalues[] = vcat(a, a[1:1, :])
         vertexcolors[] = globe_colors(a)
+        smoothcolors[]=smooth_globe_colors(a,smoothgeometry)
         cmap[] = weather_palette(weatherstyle,f)
         unittext[] = display_unit(f)
         if rescale || !lockscale.checked[]
@@ -296,6 +375,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         if viewmenu.selection[] == :tracker
             title[] = tracker.title[]
         end
+        refresh_layers!();hover.update!()
     end
     on(tracker.title) do text
         viewmenu.selection[] == :tracker && (title[]=text)
@@ -313,6 +393,9 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     end
     on(scalemenu.selection) do _;refresh();end
     on(isobartoggle.checked) do _;refresh();end
+    for toggle in (systemstoggle.checked,overlaysource.selection,labelstoggle.checked,valuestoggle.checked,nighttoggle.checked)
+        on(_->refresh(),toggle)
+    end
     on(slider.value) do t
         time[] = round(Int, t)
         refresh(; rescale=false)
@@ -331,7 +414,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     end
     on(playing) do active; play.label[] = active ? "Dừng" : "Phát"; end
     on(events(ax).mousebutton, priority=2) do event
-        if event.button == Mouse.left && event.action == Mouse.press && is_mouseinside(ax.scene) &&
+        if viewmenu.selection[]==:map && event.button == Mouse.left && event.action == Mouse.press && is_mouseinside(ax.scene) &&
                 !ispressed(fig, Keyboard.left_control) && !ispressed(fig, Keyboard.right_control)
             x, y = mouseposition(ax)
             if -180 <= x <= 180 && -90 <= y <= 90
@@ -364,7 +447,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     imported = Ref(0)
     function replace_data!(next)
         (next.lon == original.lon && next.lat == original.lat && next.layers == original.layers) ||
-            error("Phiên trực tiếp hiện yêu cầu cùng lưới T32/8 tầng với dữ liệu đang mở.")
+                error("Phiên trực tiếp yêu cầu cùng lưới và tầng với dữ liệu đang mở.")
         d = next
         playing[] = false
         time[] = length(d.times)
@@ -410,10 +493,10 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         try
             if session[] !== nothing && process_running(session[].process)
                 livestatus[] = "Phiên hiện tại còn hoạt động. Bấm Kết thúc trước khi tạo phiên mới."
-            elseif (length(original.lon),length(original.lat),length(original.layers)) != (96,48,8)
-                livestatus[] = "Hãy mở dữ liệu mẫu T32/8 tầng để tạo phiên mô phỏng trực tiếp."
+            elseif run_truncation==0
+                livestatus[] = "Thiếu metadata độ phân giải; tạo dữ liệu bằng Create_Simulation trước."
             else
-                session[] = start_session(;root=session_root,max_chunks=4durationmenu.selection[])
+                session[] = start_session(;root=session_root,max_chunks=4durationmenu.selection[],truncation=run_truncation,layers=length(original.layers))
                 history[] = nothing
                 imported[] = 0
                 sourcemenu.i_selected[] = 2
@@ -448,6 +531,8 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         livestatus, poll_live!, replace_data!, viewmenu, resetview, vertexcolors, globe_marker, fieldmenu, layermenu, lockscale, slider, selected, field, layer, time,
         pointtext, mapvalues, limits, play, back, forward, playing,
         weatherstyle,scalemenu,regionmenu,windtoggle,isobartoggle,smooth,isobars,contour_visible,durationmenu,
+        overlaybutton,overlay_open,overlaysource,systemstoggle,labelstoggle,valuestoggle,nighttoggle,gridtoggle,
+        layers,poll_layers!,hover,smoothcolors,smoothgeometry,helpcaption,
         particles,wind2d,wind3d,animate_wind!,heat,cmap,colorbar,stattext)
 end
 
@@ -474,6 +559,7 @@ function launch(path)
             try
                 viewer.poll_live!()
                 viewer.tracker.poll_model!()
+                viewer.poll_layers!()
             catch err
                 viewer.livestatus[] = "Không đọc được phiên: " * first(sprint(showerror,err),180)
             end

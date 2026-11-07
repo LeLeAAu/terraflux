@@ -109,3 +109,12 @@ Muốn viết kiểu vẽ hoàn toàn mới bằng Julia: xem **`src/storm_icons
 
 `src/tracker.jl` chỉ nối các hàm này với vị trí/phân loại và phần còn lại của UI.
 Không cần thay đổi phương trình, trạng thái hay đồng hồ của SpeedyWeather.
+
+
+## Kích thước theo vùng xoáy
+
+`[appearance].scale_with_vortex = true` nhân cỡ icon theo căn bậc hai của
+`radius_km / extent_reference_km` (mặc định 750 km), giới hạn 0.6–1.8 lần.
+Đặt false để giữ cỡ cố định. Model giữ hệ số nhỏ hơn và không mượn sprite bão
+nhiệt đới. Bán kính thiếu giữ cỡ gốc; pixel icon không phải phạm vi km chính xác.
+Phương pháp đo và vòng phạm vi ở [MAP_OVERLAYS.md](../../docs/MAP_OVERLAYS.md).

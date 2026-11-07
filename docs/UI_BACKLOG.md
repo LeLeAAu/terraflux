@@ -35,8 +35,8 @@ ENSO trên ảnh không được tự đưa vào dữ liệu thật của TerraF
 - [x] Chọn bằng chuột/menu, đổi đơn vị gió, quỹ đạo chỉ tới mốc đang xem, màu theo
   cấp đầu đoạn, nét chấm L/nét đứt tàn dư, giữ lịch sử và dấu kết thúc.
 - [x] Đồng bộ đồng hồ với thanh phát lại; mở cùng vị trí/thời gian trên trường vật
-  lý hoặc địa cầu. Dữ liệu kịch bản không sửa dữ liệu khí quyển; biểu tượng chưa
-  được phủ trực tiếp trên địa cầu.
+  lý hoặc địa cầu. Dữ liệu kịch bản không sửa dữ liệu khí quyển; lớp phủ hệ thống trên 2D/3D đã được bổ sung
+  trong mốc lớp phủ bên dưới.
 - [x] Nguồn kịch bản hiển thị rõ; áp suất thiếu ghi thiếu; không dựng số ACE/ENSO/
   impacts hay suy diễn nhận diện vật lý từ biểu tượng.
 
@@ -47,7 +47,7 @@ hiện có tiếp tục được dùng để kiểm tra hồi quy.
 
 Còn chờ: xác nhận/phân loại bão nhiệt đới và nâng cấp theo dõi, các nguồn nhập ngoài, bố cục bảng
 nổi đầy đủ, nhãn tránh chồng tổng quát, camera bám, chọn đoạn lịch sử, chuyển màu/
-mờ tan mượt, icon trực tiếp trên 3D, các thống kê mùa và xuất video. Phần dưới giữ
+mờ tan mượt, sprite animation trực tiếp trên 3D, các thống kê mùa và xuất video. Phần dưới giữ
 nguyên toàn bộ yêu cầu chi tiết để không bỏ sót khi hoàn thiện.
 
 ## Bổ sung sau phản hồi sử dụng
@@ -112,6 +112,27 @@ Bằng chứng: `test/weather_data.jl`, `test/weather_viewer.jl`, hồi quy view
 tracker và `test/live_viewer_smoke.jl` với hai đoạn mô phỏng thật. Tham chiếu mới
 chỉ dùng phong cách màu/lớp dữ liệu; không nhập số, track, forecast cone hay logo
 Zoom Earth vào thí nghiệm. Lưới T32 không được ghi thành ICON/GFS 13–22 km.
+
+## Lớp phủ, bán kính, địa cầu mượt và bộ tạo phiên
+
+- [x] Cỡ icon tương đối theo vùng gió xoáy quanh tâm; bán kính có kiểm tra
+  bốn phía/thiếu dữ liệu/cận dưới, không suy từ max gió hoặc coi là R34.
+- [x] Lớp phủ hệ thống độc lập trên trường vật lý 2D/3D, chọn nguồn mô hình hoặc
+  kịch bản; tên/giá trị địa danh, ngày đêm theo UTC mô hình và lưới tọa độ.
+- [x] Popup theo trường/tầng/mốc ở con trỏ; thêm ID/nguồn/bán kính khi có vùng
+  xoáy, vòng địa lý và lịch sử khi hover; không tạo cone dự báo không có dữ liệu.
+- [x] Nội suy màu trên mesh cầu dùng chung đỉnh, làm mịn đường bờ/kinh vĩ tuyến,
+  giữ đọc số từ ô gốc, nối kín đường đổi ngày và xử lý cực.
+- [x] Create_Simulation.bat/.sh mở form chọn ngày/T/tầng/chu kỳ lưu/CPU/seed,
+  worker riêng, cấu hình/nhật ký/manifest và mở kết quả đã kiểm chứng.
+- [x] Ghi rõ GPU dựng hình qua OpenGL, physics CPU; CUDA upstream có hỗ trợ nhưng
+  project chưa tích hợp/kiểm chứng trên GPU thật.
+
+Hướng dẫn và giới hạn: [MAP_OVERLAYS.md](MAP_OVERLAYS.md),
+[LOCAL_SIMULATION.md](LOCAL_SIMULATION.md), [GPU_STATUS.md](GPU_STATUS.md).
+Kiểm chứng bằng extents/overlays_math/overlays_viewer/setup_viewer; đã tính thật
+T63/16 tầng/1 ngày/6 giờ và từ form T21/8 tầng/1 ngày/24 giờ. Chưa có cone dự báo,
+phân loại TC kiểm định, tránh chồng mọi nhãn hoặc tích hợp CUDA của project.
 
 ## Danh sách cần làm theo tài liệu nguồn
 
@@ -227,7 +248,7 @@ Zoom Earth vào thí nghiệm. Lưới T32 không được ghi thành ICON/GFS 1
 
 ## Phụ thuộc cần giải quyết trước khi coi là kết quả vật lý
 
-- Hiện TerraFlux có trường khí quyển T32/8 tầng, xem 2D/3D, chạy phiên mới và
+- Hiện bộ mẫu TerraFlux là T32/8 tầng, bộ tạo phiên chọn T21–T85, xem 2D/3D, chạy phiên mới và
   Storm Tracker có kịch bản và ứng viên từ dữ liệu mô hình; chưa xác nhận/phân loại
   bão nhiệt đới và chưa có mô hình tác động.
 - Cần định nghĩa schema hệ thống + mẫu trạng thái theo thời gian + provenance

@@ -85,7 +85,14 @@ try
         @test count(h->h.trail_visible[],values(tracker.handles))==1
         @test !tracker.handles["MODEL-0001"].visible[] # ended early; no stale selection
         @test tracker.systemmenu.selection[]!="MODEL-0001"
-        @test all(!h.visible[] || h.size[]<30 || id==tracker.systemmenu.selection[] for (id,h) in tracker.handles)
+        for system in detected.systems
+            state=storm_state(system,tracker.clock[])
+            state===nothing && continue
+            h=tracker.handles[system.id]
+            h.visible[] || continue
+            @test h.size[]==TerraFluxViewer.TerraFluxStormIcons.extent_icon_size(tracker.style,state.radius_km;
+                selected=system.id==tracker.systemmenu.selection[],model=true)
+        end
         tracker.animate!(2.)
         @test all(!h.visible[] || h.rotation[]==0 for h in values(tracker.handles))
         # Small unlabelled model markers remain selectable through real pointer input.

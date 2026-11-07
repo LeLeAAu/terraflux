@@ -174,7 +174,7 @@ function detect_tracks(d;config=DetectionConfig())
         for index in previous
             if !(index in matched)
                 old=systems[index].samples[end]
-                push!(systems[index].samples,StormSample(now,old.lon,old.lat,old.wind_knots,old.pressure_hpa,old.kind,false))
+                push!(systems[index].samples,StormSample(now,old.lon,old.lat,old.wind_knots,old.pressure_hpa,old.kind,false,old.radius_km))
             end
         end
         current=Int[]
@@ -187,13 +187,14 @@ function detect_tracks(d;config=DetectionConfig())
             end
             system=systems[index]
             kind=candidate.thermal_core==:warm ? "model_warm" : candidate.thermal_core==:cold ? "model_cold" : "model_low"
-            sample=StormSample(now,candidate.lon,candidate.lat,candidate.wind_mps*3600/1852,candidate.pressure,kind,true)
+            sample=StormSample(now,candidate.lon,candidate.lat,candidate.wind_mps*3600/1852,candidate.pressure,kind,true,candidate.radius_km)
             push!(system.samples,sample)
             metrics[(system.id,now)]=merge((pressure_depth_hpa=candidate.depth,vorticity_s=candidate.vorticity,
                 wind_mps=candidate.wind_mps,layer=layer,sigma=Float64(d.layers[layer]),i=candidate.i,j=candidate.j),
                 (;candidate.thermal_core,candidate.lower_anomaly_k,candidate.upper_anomaly_k,
                     candidate.lower_sigmas,candidate.upper_sigmas,candidate.thermal_reason,
-                    candidate.circulation,candidate.quadrant_wind_mps))
+                    candidate.circulation,candidate.quadrant_wind_mps,candidate.radius_km,candidate.radius_censored,
+                    candidate.radius_profile_mps,candidate.radius_bins_km))
             push!(current,index)
         end
         previous=current

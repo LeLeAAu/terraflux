@@ -5,6 +5,8 @@ selected_size = 70.0
 glow_opacity = 0.16
 glow_scale = 1.12
 show_symbol_on_sprite = false
+scale_with_vortex = true
+extent_reference_km = 750.0
 
 [procedural]
 # Fallback shape when no PNG is configured. Advanced drawing lives in src/storm_icons.jl.

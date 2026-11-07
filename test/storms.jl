@@ -46,6 +46,12 @@ scenario = load_scenario(path)
     @test middle.lon == -180
     @test middle.lat == -21
     @test isempty(history_segments(crossing,b.time))
+    sized=StormSystem("SIZE","Size","",[
+        StormSample(a.time,a.lon,a.lat,a.wind_knots,nothing,a.kind,true,400.),
+        StormSample(b.time,b.lon,b.lat,b.wind_knots,nothing,b.kind,true,800.)])
+    @test storm_state(sized,a.time+Hour(3)).radius_km==600
+    missing_size=StormSystem("MISSING","Missing","",[sized.samples[1],b])
+    @test storm_state(missing_size,a.time+Hour(3)).radius_km===nothing
     # Input validation must reject ambiguous provenance, malformed clocks and duplicate IDs.
     mktempdir() do dir
         raw=TOML.parsefile(path)
@@ -62,5 +68,10 @@ scenario = load_scenario(path)
         rejected(d -> d["systems"][1]["samples"][1]["wind_knots"]=-1)
         rejected(d -> d["systems"][1]["samples"][1]["lat"]=91)
         rejected(d -> d["systems"][1]["samples"][1]["pressure_hpa"]=0)
+        rejected(d -> d["systems"][1]["samples"][1]["radius_km"]=-1)
+        rejected(d -> d["systems"][1]["samples"][1]["radius_km"]=NaN)
+        raw["systems"][1]["samples"][1]["radius_km"]=750.
+        open(trial,"w") do io;TOML.print(io,raw);end
+        @test load_scenario(trial).systems[1].samples[1].radius_km==750.
     end
 end

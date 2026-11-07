@@ -58,3 +58,9 @@ active = false
 
 Có thể sửa kịch bản để thử, nhưng luôn giữ nhãn nguồn. Dữ liệu này không thay đổi
 phương trình, trạng thái, cấu hình hoặc kết quả mô phỏng khí quyển.
+
+
+Mỗi sample có thể thêm `radius_km = 750.0` (0 < R ≤ 5000 km) cho **phạm vi
+minh họa được khai báo**. Thiếu thì giữ thiếu. Nội suy R chỉ khi hai đầu cùng
+loại và đều có R; chuyển loại giữ R mốc trước. Không dùng max gió để tự điền R.
+Bộ DEMO hiện không khai báo bán kính. Lớp phủ ghi MINH HỌA khi dùng nguồn này.

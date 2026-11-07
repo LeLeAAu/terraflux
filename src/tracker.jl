@@ -191,8 +191,7 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
                     h.name[] = is_model ? system.id*"\n"*CATEGORY_STYLES[category][2] :
                         crowded ? system.id : system.id*"\n"*system.name
                     h.label_visible[]=!is_model || system.id==selected_id
-                    h.size[] = is_model ? (system.id==selected_id ? 0.6style.selected_size : 0.4style.size) :
-                        system.id == selected_id ? style.selected_size : style.size
+                    h.size[] = extent_icon_size(style,state.radius_km;selected=system.id==selected_id,model=is_model)
                     sprite=icon_sprite(style,category)
                     h.has_sprite[] = sprite !== nothing
                     if sprite !== nothing
@@ -219,9 +218,10 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
                     unit=unitmenu.selection[]
                     label=Dict(:kn=>"kn",:ms=>"m/s",:kmh=>"km/h",:mph=>"mph")[unit]
                     anomaly(v)=v===nothing ? "thiếu" : @sprintf("%+.2f",v)
-                    circulation=metric.circulation==:supported ? "đạt 4/4 phía" : metric.circulation==:unknown ? "thiếu dữ liệu" : "chưa đạt 4 phía"
+                    circulation=metric.circulation==:supported ? "4/4 phía" : metric.circulation==:unknown ? "thiếu dữ liệu" : "chưa đạt"
                     category=storm_class(state.kind,state.wind_knots)
-                    card[]=@sprintf("%s · %s\nΔT giữa/trên: %s / %s K\nGió xoáy: %s\nÔ tâm %.2f° / %.2f°\nMSLP %.2f hPa · Δp %.2f\nζ %.2e s⁻¹\nMax ô σ=%.4f: %.1f %s\nKhông phải gió 10 m / 1 phút.",selected.id,CATEGORY_STYLES[category][2],anomaly(metric.lower_anomaly_k),anomaly(metric.upper_anomaly_k),circulation,state.lon,state.lat,state.pressure_hpa,metric.pressure_depth_hpa,metric.vorticity_s,catalog[].sigma,wind_value(state.wind_knots,unit),label)
+                    extent=state.radius_km===nothing ? "R xoáy: chưa xác định" : "R xoáy $(metric.radius_censored ? "≥" : "≈") $(round(Int,state.radius_km)) km"
+                    card[]=@sprintf("%s · %s\nΔT giữa/trên: %s / %s K\nGió xoáy: %s · %s\nÔ tâm %.2f° / %.2f°\nMSLP %.2f hPa · Δp %.2f\nζ %.2e s⁻¹\nMax ô σ=%.4f: %.1f %s\nKhông phải gió 10 m / 1 phút.",selected.id,CATEGORY_STYLES[category][2],anomaly(metric.lower_anomaly_k),anomaly(metric.upper_anomaly_k),circulation,extent,state.lon,state.lat,state.pressure_hpa,metric.pressure_depth_hpa,metric.vorticity_s,catalog[].sigma,wind_value(state.wind_knots,unit),label)
                 elseif state === nothing
                     status = now < selected.samples[1].time ? "Chưa xuất hiện tại thời điểm này." : (is_model ? "Không đạt tiêu chí ở mốc này." : "Không còn hoạt động / ngoài dữ liệu.")
                     card[] = "$(selected.id)\n$(display_name)\n$status\nNguồn: $(is_model ? "mô hình" : "kịch bản minh họa")."

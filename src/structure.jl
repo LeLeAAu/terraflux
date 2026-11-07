@@ -72,7 +72,57 @@ function model_structure(d,t,candidate;config=DetectionConfig(),layer=argmax(d.l
         "Thiếu tầng sigma trong một trong hai dải nhiệt." : thermal==:unknown ?
         "Thiếu ô nhiệt độ hợp lệ quanh tâm hoặc vành nền." : thermal==:mixed ?
         "Dị thường hai dải chưa cùng vượt ngưỡng ấm/lạnh." : "Dị thường hai dải cùng vượt ngưỡng thử nghiệm."
-    (;thermal_core=thermal,lower_anomaly_k=lo,upper_anomaly_k=hi,
+    merge((;thermal_core=thermal,lower_anomaly_k=lo,upper_anomaly_k=hi,
         lower_sigmas=Float64.(d.layers[lower]),upper_sigmas=Float64.(d.layers[upper]),
-        thermal_reason=reason,circulation,quadrant_wind_mps=quadrants)
+        thermal_reason=reason,circulation,quadrant_wind_mps=quadrants),vortex_extent(d,t,candidate;config=c,layer))
+end
+
+"Outer radius of consecutive four-quadrant cyclonic-wind annuli; not R34 or a forecast cone."
+function vortex_extent(d,t,center;config=DetectionConfig(),layer=argmax(d.layers))
+    radii=collect(500.:250.:1750.)
+    total=zeros(Int,length(radii),4);count=zeros(Int,size(total))
+    sums=zeros(size(total));weights=zeros(size(total))
+    phi0=deg2rad(center.lat)
+    for j in eachindex(d.lat),i in eachindex(d.lon)
+        distance=great_circle_km(center.lon,center.lat,d.lon[i],d.lat[j])
+        250<=distance<=2000 || continue
+        dl=wraprad(deg2rad(d.lon[i]-center.lon))
+        q=1+Int(dl>=0)+2Int(d.lat[j]>=center.lat)
+        u,v=d.fields[:u][i,j,layer,t],d.fields[:v][i,j,layer,t]
+        valid=isfinite(u) && isfinite(v)
+        phi=deg2rad(d.lat[j])
+        beta=atan(-sin(dl)*cos(phi0),cos(phi)*sin(phi0)-sin(phi)*cos(phi0)*cos(dl))
+        vt=valid ? sign(center.lat)*(u*cos(beta)-v*sin(beta)) : NaN
+        w=cos(phi)
+        for k in eachindex(radii)
+            abs(distance-radii[k])<=250 || continue
+            total[k,q]+=1
+            if valid
+                count[k,q]+=1;sums[k,q]+=w*vt;weights[k,q]+=w
+            end
+        end
+    end
+    profile=Union{Nothing,Float64}[]
+    for k in eachindex(radii)
+        complete=all(q->count[k,q]>=2 && count[k,q]>=0.8total[k,q],1:4)
+        push!(profile,complete ? minimum(sums[k,:]./weights[k,:]) : nothing)
+    end
+    radius=nothing;censored=false;previous=0
+    for k in eachindex(radii)
+        value=profile[k]
+        if value!==nothing && value>=config.circulation_min_mps
+            radius=radii[k];previous=k;censored=k==length(radii)
+        elseif radius!==nothing
+            if value===nothing
+                censored=true
+            else
+                last=profile[previous]
+                fraction=clamp((last-config.circulation_min_mps)/(last-value),0,1)
+                radius=radii[previous]+fraction*(radii[k]-radii[previous])
+            end
+            break
+        end
+    end
+    (;radius_km=radius===nothing ? nothing : 50round(radius/50),radius_censored=censored,
+        radius_profile_mps=profile,radius_bins_km=radii)
 end

@@ -25,8 +25,9 @@ làm dữ liệu. Lưới vẫn là T32 / 8 tầng, không phải ICON/GFS 13–
   `u`, `v` và độ ẩm riêng vẫn dùng thang dữ liệu phù hợp đơn vị của chúng.
 - Điểm theo dõi và min/max báo số chưa cắt theo thang màu. Giá trị vượt thang
   nhận màu đầu/cuối; không sửa số liệu để giữ trong khoảng màu.
-- **Mượt màu 2D** nội suy hình vẽ giữa các ô. Bấm bản đồ vẫn đọc ô gần nhất;
-  mượt hình không tăng độ phân giải mô hình. Địa cầu giữ màu theo ô gốc.
+- **Mượt bản đồ 2D / 3D** nội suy hình vẽ giữa các ô. Bấm/rê bản đồ vẫn đọc ô
+  gần nhất; mượt hình không tăng độ phân giải mô hình. Chi tiết địa cầu và
+  menu bật/tắt lớp phủ ở [MAP_OVERLAYS.md](MAP_OVERLAYS.md).
 - **Đẳng áp** hiện khi xem áp suất trên 2D: đường trắng có nhãn, mặc định mỗi
   **4 hPa**, trong khoảng 880–1080 hPa. Có thể tắt bằng checkbox.
 - Menu vùng ở đầu cửa sổ có **Châu Á–Thái Bình Dương** và **Toàn cầu**. Bản đồ
@@ -64,7 +65,7 @@ hiển thị thiếu tại mốc đó. Các mốc từ 6 giờ có số liệu �
 
 ## Hạt gió
 
-Bật **Hạt gió** trong 2D hoặc 3D. Hạt lấy `u/v` ở đúng nguồn, tầng và mốc đang
+Bật **Hạt gió** trong **Lớp phủ bản đồ** ở 2D hoặc 3D. Hạt lấy `u/v` ở đúng nguồn, tầng và mốc đang
 xem, có vệt trắng nhạt dần. [Video hạt gió chuyển động](wind_animation.mp4).
 
 - Nội suy song tuyến tính u/v giữa bốn ô, không dùng hướng ngẫu nhiên.
@@ -102,6 +103,9 @@ Giảm count/trail_steps nếu máy dựng hình chậm. Lần đầu dùng có 
 biên dịch. Logic palette ở `src/weather_style.jl`, hạt ở `src/wind_particles.jl`.
 
 ## Tạo thí nghiệm dài hơn
+
+Bấm **Create_Simulation.bat** để chọn tùy ý 1–365 ngày cùng T/tầng/chu kỳ lưu/
+luồng CPU/seed mà không sửa mã: [hướng dẫn](LOCAL_SIMULATION.md).
 
 Dải mô phỏng cho chọn **10/30/60 ngày** trước khi bấm **Phiên mới**. Lựa chọn áp
 dụng cho phiên tiếp theo; không đổi giới hạn của phiên đã tạo. Các nút Chạy/Tạm

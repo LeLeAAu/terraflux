@@ -1,6 +1,6 @@
 module TerraFluxStormIcons
 using GLMakie, TOML
-export IconStyle, load_icon_style, procedural_marker, icon_sprite, icon_frame, icon_rotation
+export IconStyle, load_icon_style, procedural_marker, icon_sprite, icon_frame, icon_rotation, extent_icon_size
 
 struct SpriteStyle
     frames::Vector{Matrix{RGBAf}}
@@ -19,6 +19,8 @@ struct IconStyle
     spin::Float64
     refresh_fps::Float64
     sprites::Dict{Symbol,SpriteStyle}
+    scale_with_vortex::Bool
+    extent_reference_km::Float64
 end
 function checked_number(table,key,default,low,high)
     value=Float64(get(table,key,default))
@@ -61,10 +63,17 @@ function load_icon_style(path=joinpath(@__DIR__,"..","assets","storm_tracker","s
         checked_number(procedural,"inner_radius",0.24,0.05,0.9),
         checked_number(procedural,"twist",1.6,-6,6),
         checked_number(animation,"spin_radians_per_second",0.32,0,10),
-        checked_number(animation,"refresh_fps",30,1,60),sprites
+        checked_number(animation,"refresh_fps",30,1,60),sprites,
+        get(appearance,"scale_with_vortex",true),checked_number(appearance,"extent_reference_km",750,50,3000)
     )
     1 <= style.arms <= 8 || error("Số cánh icon phải từ 1 tới 8.")
     style
+end
+function extent_icon_size(style,radius;selected=false,model=false)
+    base=selected ? style.selected_size : style.size
+    model && (base*=selected ? 0.6f0 : 0.4f0)
+    scale=style.scale_with_vortex && radius!==nothing ? clamp(sqrt(radius/style.extent_reference_km),0.6,1.8) : 1.
+    Float32(base*scale)
 end
 
 # CUSTOM DRAWING ENTRY POINT: replace this function for a different procedural icon.

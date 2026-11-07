@@ -16,12 +16,13 @@ function atomic_toml(path, data)
     mv(temporary,path;force=true)
 end
 
-function start_session(; root=joinpath(@__DIR__,"..","sessions"), max_chunks=40)
+function start_session(; root=joinpath(@__DIR__,"..","sessions"), max_chunks=40,truncation=32,layers=8)
     max_chunks > 0 || throw(ArgumentError("Số bước phải lớn hơn 0."))
+    truncation in (21,32,63,85) && layers in (8,16,24,32) || throw(ArgumentError("Cấu hình lưới/tầng không hỗ trợ."))
     mkpath(root)
     directory = mktempdir(abspath(root);prefix="session_",cleanup=false)
     mkpath(joinpath(directory,"commands"))
-    atomic_toml(joinpath(directory,"config.toml"),Dict("truncation"=>32,"layers"=>8,
+    atomic_toml(joinpath(directory,"config.toml"),Dict("truncation"=>truncation,"layers"=>layers,
         "chunk_hours"=>6,"max_chunks"=>max_chunks,"model"=>"PrimitiveWetModel",
         "initial_mslp"=>"unavailable_before_surface_diagnostics",
         "julia_version"=>string(VERSION),"created_at"=>string(time())))

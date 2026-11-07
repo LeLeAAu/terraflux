@@ -5,8 +5,9 @@ using .TerraFluxViewer
 using .TerraFluxViewer.TerraFluxData
 using .TerraFluxViewer.TerraFluxLive
 using .TerraFluxViewer.TerraFluxDetection
-path = joinpath(@__DIR__,"..","run_0001","output.nc")
+path = get(ENV,"TERRAFLUX_TEST_DATA",joinpath(@__DIR__,"..","run_0001","output.nc"))
 data = load_weather(path)
+surface=length(data.layers)
 root = mktempdir(;prefix="terraflux gui test ")
 viewer = build_viewer(data;session_root=root)
 screen = display(viewer.fig)
@@ -27,6 +28,10 @@ try
         @test viewer.session[] !== nothing
         @test viewer.durationmenu.selection[]==60
         @test TOML.parsefile(joinpath(viewer.session[].directory,"config.toml"))["max_chunks"]==240
+        cfg=TOML.parsefile(joinpath(viewer.session[].directory,"config.toml"))
+        @test cfg["layers"]==surface
+        expected_T=TerraFluxData.NCDataset(path,"r") do ds;Int(get(ds.attrib,"terraflux_truncation",32));end
+        @test cfg["truncation"]==expected_T
         await_gui(s -> s !== nothing && s["state"] == "paused")
         viewer.selected[] = (60,30)
         viewer.stepmodel.clicks[] += 1
@@ -34,11 +39,11 @@ try
         @test viewer.history[] !== nothing
         @test length(viewer.history[].times) == 2
         @test haskey(viewer.history[].fields,:pres)
-        @test all(isnan,frame(viewer.history[],:rh,8,1))
+        @test all(isnan,frame(viewer.history[],:rh,surface,1))
         @test viewer.time[] == 2
         @test viewer.slider.range[] == 1:2
         @test viewer.selected[] == (60,30)
-        @test viewer.mapvalues[][1:end-1,:] == frame(viewer.history[],:temp,8,2)
+        @test viewer.mapvalues[][1:end-1,:] == frame(viewer.history[],:temp,surface,2)
         viewer.viewmenu.i_selected[]=3
         viewer.tracker.source_menu.i_selected[]=2
         await_gui(s -> viewer.tracker.catalog[] isa ModelStormSet)
@@ -50,8 +55,8 @@ try
         @test model.reports[2].valid_pressure>0
         viewer.tracker.source_menu.i_selected[]=1
         viewer.sourcemenu.i_selected[] = 1
-        @test viewer.mapvalues[][1:end-1,:] == frame(data,:temp,8,41)
-        @test viewer.slider.range[] == 1:41
+        @test viewer.mapvalues[][1:end-1,:] == frame(data,:temp,surface,length(data.times))
+        @test viewer.slider.range[] == 1:length(data.times)
         viewer.sourcemenu.i_selected[] = 2
         @test viewer.slider.range[] == 1:2
         viewer.fieldmenu.i_selected[] = 6  # MSLP
@@ -68,7 +73,7 @@ try
         @test viewer.time[] == 3
         @test viewer.history[].times[end]-viewer.history[].times[1] == Hour(12)
         @test size(viewer.history[].fields[:pres],3)==3
-        @test count(isfinite,frame(viewer.history[],:rh,8,3))>0
+        @test count(isfinite,frame(viewer.history[],:rh,surface,3))>0
         viewer.viewmenu.i_selected[]=3
         viewer.tracker.source_menu.i_selected[]=2
         await_gui(s -> viewer.tracker.catalog[] isa ModelStormSet && length(viewer.tracker.catalog[].reports)==3)

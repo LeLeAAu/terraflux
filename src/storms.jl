@@ -26,7 +26,9 @@ struct StormSample
     pressure_hpa::Union{Nothing,Float64}
     kind::String
     active::Bool
+    radius_km::Union{Nothing,Float64}
 end
+StormSample(t,lon,lat,wind,pressure,kind,active)=StormSample(t,lon,lat,wind,pressure,kind,active,nothing)
 struct StormSystem
     id::String
     name::String
@@ -65,7 +67,9 @@ function load_scenario(path)
             time = DateTime(raw["time"])
             isempty(samples) || time > samples[end].time || error("Mốc thời gian phải tăng nghiêm ngặt: $id")
             isempty(samples) || samples[end].active || error("Không tái sử dụng ID sau khi hệ thống đã tan: $id")
-            push!(samples,StormSample(time,lon,lat,wind,pressure,kind,get(raw,"active",true)))
+            radius=haskey(raw,"radius_km") ? Float64(raw["radius_km"]) : nothing
+            radius===nothing || isfinite(radius) && 0<radius<=5000 || error("Bán kính minh họa không hợp lệ.")
+            push!(samples,StormSample(time,lon,lat,wind,pressure,kind,get(raw,"active",true),radius))
         end
         length(samples) >= 2 || error("Mỗi hệ thống cần ít nhất hai mốc: $id")
         push!(systems,StormSystem(id,String(system["name"]),String(get(system,"local_name","")),samples,basin))
@@ -105,7 +109,9 @@ function storm_state(system::StormSystem, time::DateTime)
     pressure = a.kind != b.kind ? a.pressure_hpa :
         a.pressure_hpa === nothing || b.pressure_hpa === nothing ? nothing :
             a.pressure_hpa+fraction*(b.pressure_hpa-a.pressure_hpa)
-    StormSample(time,lon,lat,wind,pressure,a.kind,true)
+    radius=a.kind!=b.kind ? a.radius_km : a.radius_km===nothing || b.radius_km===nothing ? nothing :
+        a.radius_km+fraction*(b.radius_km-a.radius_km)
+    StormSample(time,lon,lat,wind,pressure,a.kind,true,radius)
 end
 
 "Completed history only, colored by the state at each segment's start; no dateline chord."
