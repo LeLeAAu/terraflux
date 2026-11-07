@@ -154,6 +154,14 @@ Chọn **Địa cầu 3D** trong menu ở góc trên bên phải; chọn **Bản
 
 ![Chế độ địa cầu 3D](docs/globe.png)
 
+## Can thiệp nhiệt — mốc đầu của V2
+
+Bấm **Can thiệp nhiệt** ở đầu bản đồ/địa cầu. Tạo phiên live, tính **+6 giờ**
+rồi tạm dừng; chọn tâm, tầng, R và ΔT để làm nóng/lạnh một vùng **một lần**.
+Có xem trước, checkpoint trước/sau, nhật ký và hoàn tác trước bước tính mới.
+Khung đã lưu giữ nguyên; bấm **+6 giờ** để xem phản ứng sau tác động.
+[Hướng dẫn và giới hạn](docs/THERMAL_EXPERIMENTS.md).
+
 ## Sử dụng
 
 - **Trường quan sát:** nhiệt độ (°C), tốc độ gió (km/h), u/v (m/s), độ ẩm riêng (g/kg), độ ẩm tương đối (%), áp suất quy mực biển (hPa).
@@ -180,7 +188,7 @@ Phần bản đồ dùng kinh độ −180…180°, vĩ độ −90…90°, đư
 - `src/map_layers.jl`, `src/hover.jl`, `src/map_math.jl`: lớp phủ, đọc tại chuột và hình học/ngày đêm.
 - `note1.txt`: mục tiêu và lộ trình phát triển.
 
-Chỉnh trạng thái, khôi phục phiên trong giao diện và so sánh A/B là các mốc tiếp theo; chưa có trong bản này.
+Can thiệp nhiệt một lần và hoàn tác trong phiên đã có. Chỉnh ẩm/gió, tác động tăng dần/duy trì, khôi phục phiên sau khi đóng app và so sánh A/B còn chờ triển khai.
 
 ## Kiểm tra
 

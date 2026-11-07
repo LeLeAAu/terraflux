@@ -1,5 +1,7 @@
 module TerraFluxLive
 using TOML
+include("thermal_patch.jl")
+using .TerraFluxThermalPatch
 export LiveSession, start_session, send_command!, read_status, stop_session!, atomic_toml
 
 mutable struct LiveSession
@@ -36,12 +38,31 @@ function start_session(; root=joinpath(@__DIR__,"..","sessions"), max_chunks=40,
     LiveSession(directory,process,0)
 end
 
-function send_command!(session::LiveSession, action::String)
-    action in ("run","pause","step","stop") || throw(ArgumentError("Lệnh không hỗ trợ: $action"))
+function send_command!(session::LiveSession, action::String;patch=nothing)
+    action in ("run","pause","step","stop","thermal","undo_thermal") || throw(ArgumentError("Lệnh không hỗ trợ: $action"))
     process_running(session.process) || error("Tiến trình mô phỏng đã kết thúc. Xem $(joinpath(session.directory,"worker.log"))")
+    if action in ("thermal","undo_thermal")
+        status=read_status(session)
+        status["state"]=="paused" && get(status,"sequence",0)==session.sequence || error("Can thiệp chỉ dùng khi đã tạm dừng và xử lý xong lệnh trước.")
+    end
+    spec=action=="thermal" ? thermal_spec(;patch...) : nothing
     session.sequence += 1
-    command = Dict("sequence"=>session.sequence,"action"=>action)
+    command = Dict{String,Any}("sequence"=>session.sequence,"action"=>action)
+    spec===nothing || (command["patch"]=Dict(string(k)=>v for (k,v) in pairs(spec)))
     atomic_toml(joinpath(session.directory,"commands",lpad(string(session.sequence),6,'0')*".toml"),command)
+end
+
+"Apply queued edits in order; an explicit stop cancels work not yet started."
+function next_command(directory,sequence)
+    folder=joinpath(directory,"commands")
+    names=filter(readdir(folder)) do name
+        n=endswith(name,".toml") ? tryparse(Int,splitext(name)[1]) : nothing
+        n!==nothing && n>sequence
+    end
+    isempty(names) && return nothing
+    sort!(names;by=n->parse(Int,splitext(n)[1]))
+    latest=TOML.parsefile(joinpath(folder,last(names)))
+    latest["action"]=="stop" ? latest : TOML.parsefile(joinpath(folder,first(names)))
 end
 
 function read_status(session::LiveSession)

@@ -82,3 +82,19 @@ includes, including when recording errors. Preserve full log backtraces and
 structured error status; startup stdout/stderr must reach simulation_setup.log
 before GUI imports. Local logs stay out of Git. Cancellation must work even
 with broken metadata and must preserve a completed worker exiting normally.
+
+
+V2 starts with one-time thermal patches; read `docs/THERMAL_EXPERIMENTS.md`.
+`src/thermal_patch.jl` defines the compact input shape/limits; `thermal_model.jl`
+applies a spectral perturbation to both leapfrog buffers. Checkpoint variables,
+clock and worker-task RNG before mutation; errors must roll back. Commands only
+apply when paused, and GUI actions require the current live endpoint. Existing
+NetCDF frames are immutable pre-edit records; show pending edits and require
+new physics output to observe their evolution. Do not export state by calling
+run! with a zero period: this library can still advance its clock. Preview rings
+show nominal input support, not the nonlocal projected field or storm extent.
+Undo is one level until the next integration, not a general time rewind. Keep
+one-time heating distinct from sustained forcing or an initialized cyclone.
+
+Live commands run in order so a queued thermal edit cannot be silently skipped
+by a following run request; an explicit stop cancels unstarted work.

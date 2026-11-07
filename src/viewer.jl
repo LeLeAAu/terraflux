@@ -16,6 +16,8 @@ include("tracker.jl")
 include("map_math.jl")
 include("map_layers.jl")
 include("hover.jl")
+include("intervention_panel.jl")
+using .TerraFluxInterventionPanel
 using .TerraFluxMapLayers
 using .TerraFluxHover
 using .TerraFluxTracker
@@ -55,6 +57,8 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     colsize!(header, 1, Relative(0.7))
     physical_widgets = Any[]
     overlay_open=Observable(false)
+    intervention_open=Observable(false);intervention_widgets=Any[]
+    interventionbutton=Button(header[2,1],label="Can thiệp nhiệt",width=190,halign=:center,buttoncolor=PANEL,labelcolor=INK)
     overlaybutton=Button(header[1,1],label="Lớp phủ bản đồ",width=235,halign=:right,buttoncolor=PANEL,labelcolor=INK)
     regionmenu=Menu(header[2,1],options=[("Toàn cầu",:global),("Châu Á–Thái Bình Dương",:asia)],
         default=2,width=235,halign=:right)
@@ -99,16 +103,20 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     gridtext = Observable("Lưới đầu ra: $(length(d.lon)) × $(length(d.lat))\n$(length(d.layers)) tầng · $(length(d.times)) thời điểm\nPhóng to không tăng độ phân giải.")
     push!(physical_widgets, Label(sidebar[12, 1], gridtext, fontsize=11, color=MUTED, halign=:left, justification=:left))
     append!(physical_widgets,[fieldmenu,layermenu,scalemenu,lockscale])
-    scope_widget_inputs!(vcat(physical_widgets,overlay_widgets,[overlaybutton]))
+    scope_widget_inputs!(vcat(physical_widgets,overlay_widgets,[overlaybutton,interventionbutton]))
     function set_panels!()
         physical=viewmenu.selection[]!=:tracker
-        for widget in physical_widgets;widget.blockscene.visible[]=physical && !overlay_open[];end
+        for widget in physical_widgets;widget.blockscene.visible[]=physical && !overlay_open[] && !intervention_open[];end
         for widget in overlay_widgets;widget.blockscene.visible[]=physical && overlay_open[];end
+        for widget in intervention_widgets;widget.blockscene.visible[]=physical && intervention_open[];end
         regionmenu.blockscene.visible[]=viewmenu.selection[]==:map
         overlaybutton.blockscene.visible[]=physical
+        interventionbutton.blockscene.visible[]=physical
+        interventionbutton.label[]=intervention_open[] ? "Đóng can thiệp" : "Can thiệp nhiệt"
         overlaybutton.label[]=overlay_open[] ? "Trường quan sát" : "Lớp phủ bản đồ"
     end
-    on(overlaybutton.clicks) do _;overlay_open[]=!overlay_open[];set_panels!();end
+    on(overlaybutton.clicks) do _;overlay_open[]=!overlay_open[];intervention_open[]=false;set_panels!();end
+    on(interventionbutton.clicks) do _;intervention_open[]=!intervention_open[];overlay_open[]=false;set_panels!();end
     rowgap!(sidebar, 6)
     rowsize!(sidebar,8,Fixed(0))
     maparea = GridLayout(fig[2, 2])
@@ -293,6 +301,10 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
             end
         end,
         on_start=timestamp -> set_close_to!(slider,argmin(abs.(d.times .- timestamp))))
+    intervention=build_intervention_panel(fig[2,1],ax,globe,viewmenu.selection,intervention_open,selected,layer;
+        get_data=()->d,on_apply=spec->request_thermal("thermal";patch=spec),on_undo=()->request_thermal("undo_thermal"),
+        on_layer=k->(layermenu.i_selected[]=k))
+    append!(intervention_widgets,intervention.widgets);scope_widget_inputs!(intervention_widgets)
     layers=build_map_layers(ax,globe,smoothgeometry,viewmenu.selection;systems=systemstoggle.checked,
         labels=labelstoggle.checked,values=valuestoggle.checked,night=nighttoggle.checked,style=tracker.style)
     last_layer_result=Ref{Any}(nothing)
@@ -315,7 +327,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         layers.omitted[]>0 && (overlaystatus[]*="\nẨn $(layers.omitted[]) tâm: giới hạn 256 icon.")
     end
     menus=(viewmenu,fieldmenu,layermenu,scalemenu,regionmenu,sourcemenu,durationmenu,overlaysource,
-        tracker.source_menu,tracker.systemmenu,tracker.unitmenu,tracker.filter_menu,tracker.region)
+        tracker.source_menu,tracker.systemmenu,tracker.unitmenu,tracker.filter_menu,tracker.region,intervention.menu)
     hover=build_hover(fig,ax,globe,tracker,viewmenu.selection,menus,layers,systemstoggle.checked;
         get_data=()->d,get_field=()->field[],get_layer=()->layer[],get_time=()->d.times[time[]],get_values=()->mapvalues[])
     function poll_layers!()
@@ -333,7 +345,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         globe.blockscene.visible[] = is_globe
         globe.scene.visible[] = is_globe
         colorbar.blockscene.visible[] = !is_tracker
-        overlay_open[]=false;set_panels!();hover.visible[]=false
+        overlay_open[]=false;intervention_open[]=false;set_panels!();hover.visible[]=false
         tracker.set_active!(is_tracker)
         helptext[] = is_tracker ? "Chọn nguồn trong Storm Tracker • Biểu tượng là vị trí đại diện, không chỉ bán kính gió" :
             is_globe ? "Địa cầu 3D • Kéo chuột trái: xoay • Cuộn: thu phóng • Bấm trái: đọc giá trị" :
@@ -445,6 +457,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     session = Ref{Union{Nothing,LiveSession}}(nothing)
     history = Ref{Union{Nothing,WeatherData}}(nothing)
     imported = Ref(0)
+    last_intervention_notice=Ref("")
     function replace_data!(next)
         (next.lon == original.lon && next.lat == original.lat && next.layers == original.layers) ||
                 error("Phiên trực tiếp yêu cầu cùng lưới và tầng với dữ liệu đang mở.")
@@ -484,10 +497,28 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
             "complete"=>"Đã hoàn tất", "stopped"=>"Đã kết thúc", "error"=>"Lỗi mô phỏng")
         message = get(text,state,state)
         pending = get(status,"sequence",0) < session[].sequence
-        pending && (message *= " · lệnh đang chờ mốc 6 giờ")
+        pending && (message *= " · lệnh đang chờ xử lý")
+        get(status,"pending_edit",false) && (message*=" · có tác động nhiệt chờ mốc mới")
         state == "error" && (message *= " · " * first(get(status,"error","Xem worker.log"),180))
+        command_error=get(status,"command_error","")
+        isempty(command_error) || (message*=" · từ chối: "*first(command_error,100))
         livestatus[] = "$message · Đã tính $(status["completed"]*6) giờ · $(basename(session[].directory))"
+        notice=!isempty(command_error) ? first(command_error,240) : pending ? "Đang xử lý lệnh…" :
+            get(status,"pending_edit",false) ? "Đã áp dụng. Khung đã lưu vẫn là trước tác động; bấm +6 giờ để xem phản ứng.\n"*get(status,"edit_summary","") :
+            isempty(get(status,"edit_summary","")) ? "Chọn tâm/tầng và xem trước.\nChỉ dùng ở mốc cuối của phiên live đã tạm dừng." : get(status,"edit_summary","")
+        if notice!=last_intervention_notice[]
+            intervention.message[]=notice;last_intervention_notice[]=notice
+        end
         status
+    end
+    function request_thermal(action;patch=nothing)
+        session[]===nothing && error("Tạo phiên live và tính +6 giờ trước.")
+        history[]!==nothing && sourcemenu.selection[]==:live && d===history[] && time[]==length(d.times) ||
+            error("Mở nguồn Phiên mô phỏng và chọn mốc cuối đã lưu.")
+        status=read_status(session[])
+        get(status,"model_time","")==string(d.times[end]) || error("Mốc đang xem chưa khớp trạng thái mô hình.")
+        send_command!(session[],action;patch)
+        poll_live!()
     end
     on(newrun.clicks) do _
         try
@@ -532,7 +563,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         pointtext, mapvalues, limits, play, back, forward, playing,
         weatherstyle,scalemenu,regionmenu,windtoggle,isobartoggle,smooth,isobars,contour_visible,durationmenu,
         overlaybutton,overlay_open,overlaysource,systemstoggle,labelstoggle,valuestoggle,nighttoggle,gridtoggle,
-        layers,poll_layers!,hover,smoothcolors,smoothgeometry,helpcaption,
+        layers,poll_layers!,hover,smoothcolors,smoothgeometry,helpcaption,intervention,intervention_open,interventionbutton,
         particles,wind2d,wind3d,animate_wind!,heat,cmap,colorbar,stattext)
 end
 

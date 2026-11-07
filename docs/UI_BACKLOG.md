@@ -138,6 +138,22 @@ batch_status/batch_worker_errors/model_progress; đã tính thật
 T63/16 tầng/1 ngày/6 giờ và từ form T21/8 tầng/1 ngày/24 giờ. Chưa có cone dự báo,
 phân loại TC kiểm định, tránh chồng mọi nhãn hoặc tích hợp CUDA của project.
 
+## V2 đầu tiên — can thiệp nhiệt lên phiên live
+
+- [x] Bảng Can thiệp nhiệt riêng, chọn tâm từ bản đồ/địa cầu, tầng sigma, bán
+  kính và ΔT, vòng xem trước; cô lập input với trường vật lý/overlay/Tracker.
+- [x] Một lần trên một tầng của mô hình thật khi đã tạm dừng và xem mốc cuối;
+  kiểm tra đầu vào, chiếu phổ, không sửa dữ liệu mẫu hoặc tự chạy thời gian.
+- [x] Checkpoint trước/sau gồm biến, đồng hồ và RNG task worker; nhật ký tác
+  động/hoàn tác/từ chối, ước lượng nhiệt lượng khô bằng trọng số native.
+- [x] Hoàn tác một cấp trước bước tính mới; khung cũ giữ trạng thái trước tác
+  động, mốc sau +6 giờ phản ánh tiến triển vật lý.
+
+Phương pháp/cách dùng/giới hạn: [THERMAL_EXPERIMENTS.md](THERMAL_EXPERIMENTS.md).
+Bằng chứng: thermal_patch/thermal_model/intervention_viewer. Chưa phải toàn bộ
+V2: can thiệp ẩm/gió/tạo xoáy, tác động tăng dần/duy trì, khôi phục phiên sau
+khi đóng app và so sánh A/B vẫn còn chờ.
+
 ## Danh sách cần làm theo tài liệu nguồn
 
 ### Đối chiếu phân loại Mỹ

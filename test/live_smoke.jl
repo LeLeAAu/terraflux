@@ -44,9 +44,12 @@ try
         @test length(unique(history.times)) == 5
         @test frame(history,:temp,8,5) == frame(chunks[end],:temp,8,2)
         @test maximum(abs.(frame(history,:temp,8,5)-frame(history,:temp,8,1))) > 0
-        @test all(all(isfinite,v) for (f,v) in history.fields if f != :mslp)
+        @test all(all(isfinite,v) for (f,v) in history.fields if !(f in (:mslp,:pres)))
         @test all(isnan,history.fields[:mslp][:,:,1])
         @test all(isfinite,history.fields[:mslp][:,:,2:end])
+        # Surface pressure, like MSLP, is explicitly unavailable before initial physics.
+        @test all(isnan,history.fields[:pres][:,:,1])
+        @test all(isfinite,history.fields[:pres][:,:,2:end])
         @test all(isfile(joinpath(dirname(path),"restart.jld2")) for path in done["files"])
         @test isfile(joinpath(session.directory,"config.toml"))
         @test length(readdir(joinpath(session.directory,"commands"))) == 4
