@@ -62,7 +62,19 @@ Trong Storm Tracker, chọn nguồn **Ứng viên từ mô hình** ở đầu b�
 
 ![Ứng viên từ mô hình](docs/model_detection.png)
 
-**`L?` chỉ là ứng viên xoáy/áp thấp, chưa xác nhận là bão nhiệt đới và không gán SSHWS.** Thẻ hiển thị MSLP ô tâm, độ trũng Δp, độ xoáy ζ và cực đại gió ô lưới trên tầng sigma thấp nhất. Gió này không phải gió 10 m duy trì 1 phút. Mất tiêu chí sẽ ngắt track, không mặc nhiên kết luận bão đã tan; không bù điểm bị thiếu hay nội suy trạng thái giữa các mốc mô hình.
+**W/C/L? là nhóm cấu trúc sơ bộ, chưa xác nhận bão nhiệt đới và không gán SSHWS.**
+W: dấu hiệu lõi ấm; C: dấu hiệu lõi lạnh; L?: hỗn hợp hoặc thiếu dữ liệu. Bộ phân
+tích dùng dị thường nhiệt hai dải sigma so với nền quanh tâm, kèm kiểm tra gió
+xoáy bốn phía. Thẻ hiển thị hai dị thường, trạng thái gió, MSLP ô tâm, độ trũng
+Δp, độ xoáy ζ và cực đại gió ô lưới trên tầng sigma thấp nhất. Gió này không phải
+gió 10 m duy trì 1 phút. Các ngưỡng cấu trúc là thử nghiệm, chưa kiểm định bằng
+quan trắc; W không đồng nghĩa TC, C chưa đủ để kết luận EX.
+
+Mặc định chỉ hiện **Đang hoạt động** với chấm nhỏ; chỉ tâm đang chọn có tên và
+quỹ đạo. Bộ lọc mới cho xem riêng lõi ấm/lạnh/chưa rõ, hoặc **Tất cả + lịch sử**
+để xem các track đã mất dấu. Khi tâm đang chọn hết hoạt động, menu tự chọn một
+tâm còn hoạt động. **Tới mốc đầu** tuân theo bộ lọc đang chọn. Mất tiêu chí ngắt
+track, không mặc nhiên kết luận bão đã tan; không bù hoặc nội suy mốc mô hình.
 
 Hai nguồn được giữ riêng: dữ liệu DEMO không xuất hiện trong kết quả mô hình. Có thể chuyển sang trường vật lý/địa cầu để đối chiếu cùng ô và thời gian. Đổi tệp hoặc nhận mốc live mới sẽ làm mới cache phân tích; kết quả rỗng/dữ liệu thiếu được hiển thị rõ. Các file `.bat`/`.sh` mở Julia với 2 luồng; nếu chạy lệnh thủ công nên dùng `julia --threads=2 --project=. viewer.jl` để bộ phân tích có luồng tính riêng.
 
@@ -172,6 +184,7 @@ Kiểm thử nhận diện ứng viên và tích hợp với NetCDF thật:
 
 ```sh
 julia --project=. test/detection.jl
+julia --project=. test/structure.jl
 julia --project=. test/classification.jl
 # Cần màn hình/OpenGL, dùng 2 luồng cho phân tích nền:
 julia --threads=2 --project=. test/detection_viewer.jl

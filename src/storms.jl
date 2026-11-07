@@ -7,6 +7,8 @@ export StormSample, StormSystem, StormScenario, load_scenario, storm_state, stor
 
 const CATEGORY_STYLES = Dict(
     :MODEL_LOW => ("L?", "Ứng viên xoáy mô hình", "#84ccd7"),
+    :MODEL_WARM => ("W", "Dấu hiệu lõi ấm", "#f4b763"),
+    :MODEL_COLD => ("C", "Dấu hiệu lõi lạnh", "#81aada"),
     :LOW => ("L", "Vùng áp thấp", "#a4b7c5"), :POST => ("PT", "Xoáy thuận hậu nhiệt đới", "#b6bac4"),
     :UNKNOWN => ("?", "Chưa xếp cường độ", "#a4b7c5"),
     :L => ("L", "Nhiễu động", "#50ddea"), :EX => ("EX", "Ngoại nhiệt đới", "#b6bac4"),
@@ -93,7 +95,7 @@ function storm_state(system::StormSystem, time::DateTime)
     index = searchsortedlast(getfield.(samples,:time),time)
     a = samples[index]
     !a.active && return nothing
-    a.kind == "model_low" && time != a.time && return nothing
+    startswith(a.kind,"model_") && time != a.time && return nothing
     (time == a.time || index == length(samples)) && return a
     b = samples[index+1]
     fraction = Dates.value(time-a.time)/Dates.value(b.time-a.time)

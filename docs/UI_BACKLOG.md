@@ -74,7 +74,24 @@ nguyên toàn bộ yêu cầu chi tiết để không bỏ sót khi hoàn thiệ
 
 Bằng chứng và giới hạn: `docs/MODEL_DETECTION.md`, `test/detection.jl`,
 `test/detection_viewer.jl`. Đây **chưa phải bộ nhận diện bão nhiệt đới đã kiểm định**;
-chưa có lõi ấm/hoàn lưu kín, xử lý tách/hợp nhất hoặc đánh giá bằng quan trắc.
+chưa có xác nhận lõi ấm/hoàn lưu kín, xử lý tách/hợp nhất hoặc đánh giá bằng quan trắc.
+
+## Sau ảnh bản đồ nhiều L? và quỹ đạo chồng nhau
+
+- [x] Dùng nhiệt độ theo tầng để tách dấu hiệu lõi ấm/lạnh/hỗn hợp/thiếu dữ liệu;
+  bỏ gradient nền tuyến tính, có chuẩn số ô/tầng và ngưỡng thử nghiệm công khai.
+- [x] Thẻ có hai dị thường nhiệt và bằng chứng gió tiếp tuyến bốn phía; không
+  coi vĩ độ/cực đại gió hay dấu hiệu lõi ấm là đủ để xác nhận TC hoặc SSHWS.
+- [x] Model dùng chấm nhỏ W/C/L?, không vẽ mọi áp thấp như icon bão đang xoay.
+  Mặc định chỉ tên/quỹ đạo của tâm đang chọn; bộ lọc nhóm và lịch sử rõ ràng.
+- [x] Danh sách mặc định chỉ các tâm đang hoạt động, tự chọn lại khi mất dấu;
+  chế độ lịch sử vẫn xem được các ID đã sinh mà không lộ tương lai.
+
+Bằng chứng: `test/structure.jl` (trường xoáy/nhiệt biết trước, dữ liệu thiếu,
+gradient nền, bán cầu/đường đổi ngày), `test/detection_viewer.jl` (khung cuối
+NetCDF, lọc nhóm, click chấm, lựa chọn, một nhãn/quỹ đạo mặc định và menu ẩn).
+Chi tiết phương pháp/giới hạn và ảnh trước khi xuất bản: `docs/MODEL_DETECTION.md`.
+Chưa hoàn thành xác nhận TC/EX, đối lưu, gió chuẩn hoặc kiểm định quan trắc.
 
 ## Danh sách cần làm theo tài liệu nguồn
 

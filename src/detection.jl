@@ -1,7 +1,8 @@
 module TerraFluxDetection
 using Dates
 using ..TerraFluxStorms
-export DetectionConfig, ModelStormSet, detect_tracks, detect_candidates, spherical_vorticity, great_circle_km
+export DetectionConfig, ModelStormSet, detect_tracks, detect_candidates, spherical_vorticity, great_circle_km,
+       model_structure
 
 Base.@kwdef struct DetectionConfig
     pressure_depth_hpa::Float64 = 2.0
@@ -16,6 +17,11 @@ Base.@kwdef struct DetectionConfig
     grid_tolerance_km::Float64 = 400.0
     max_link_hours::Float64 = 12.0
     max_candidates::Int = 32
+    thermal_core_km::Float64 = 500.0
+    thermal_anomaly_k::Float64 = 0.5
+    circulation_inner_km::Float64 = 500.0
+    circulation_outer_km::Float64 = 1000.0
+    circulation_min_mps::Float64 = 2.0
 end
 struct ModelStormSet
     title::String
@@ -34,6 +40,7 @@ function great_circle_km(lon1,lat1,lon2,lat2)
     a=sind((lat2-lat1)/2)^2+cosd(lat1)*cosd(lat2)*sind((lon2-lon1)/2)^2
     2(EARTH_RADIUS_M/1000)*asin(sqrt(clamp(a,0,1)))
 end
+include("structure.jl")
 function validate_grid(d,c)
     length(d.lon)>=8 && length(d.lat)>=5 || error("Nhận diện cần lưới toàn cầu ít nhất 8×5 ô.")
     gaps=vcat(diff(d.lon),d.lon[1]+360-d.lon[end])
@@ -44,6 +51,8 @@ function validate_grid(d,c)
     0<c.ring_inner_km<c.ring_outer_km && c.wind_radius_km>0 && c.separation_km>0 &&
         c.pressure_depth_hpa>0 && c.cyclonic_vorticity_s>0 && 0<c.min_latitude<c.max_latitude<90 &&
         c.max_speed_mps>0 && c.grid_tolerance_km>=0 && c.max_link_hours>0 && c.max_candidates>0 || error("Tiêu chí nhận diện không hợp lệ.")
+    0<c.thermal_core_km<c.ring_inner_km && c.thermal_anomaly_k>0 &&
+        0<c.circulation_inner_km<c.circulation_outer_km && c.circulation_min_mps>0 || error("Tiêu chí cấu trúc không hợp lệ.")
     all(isfinite,getfield.(Ref(c),fieldnames(DetectionConfig))) || error("Tiêu chí phải hữu hạn.")
     !isempty(d.times) || error("Chưa có mốc thời gian.")
     nx,ny,nt=length(d.lon),length(d.lat),length(d.times)
@@ -51,6 +60,7 @@ function validate_grid(d,c)
     for f in (:u,:v)
         size(d.fields[f])==(nx,ny,length(d.layers),nt) || error("Gió không khớp lưới/tầng/thời gian.")
     end
+    !haskey(d.fields,:temp) || size(d.fields[:temp])==size(d.fields[:u]) || error("Nhiệt độ không khớp lưới/tầng/thời gian.")
 end
 
 "Relative vertical vorticity on a sphere, central differences on nonuniform latitude."
@@ -122,6 +132,7 @@ function candidates_at(d,t,c,layer)
     end
     found=length(kept)
     resize!(kept,min(length(kept),c.max_candidates))
+    kept=[merge(candidate,model_structure(d,t,candidate;config=c,layer)) for candidate in kept]
     kept,(valid_pressure=count(isfinite,p),valid_wind=count(k->isfinite(u[k]) && isfinite(v[k]),eachindex(u,v)),total_cells=length(p),found=found,kept=length(kept),capped=found>length(kept))
 end
 
@@ -163,7 +174,7 @@ function detect_tracks(d;config=DetectionConfig())
         for index in previous
             if !(index in matched)
                 old=systems[index].samples[end]
-                push!(systems[index].samples,StormSample(now,old.lon,old.lat,old.wind_knots,old.pressure_hpa,"model_low",false))
+                push!(systems[index].samples,StormSample(now,old.lon,old.lat,old.wind_knots,old.pressure_hpa,old.kind,false))
             end
         end
         current=Int[]
@@ -175,10 +186,14 @@ function detect_tracks(d;config=DetectionConfig())
                 index=length(systems)
             end
             system=systems[index]
-            sample=StormSample(now,candidate.lon,candidate.lat,candidate.wind_mps*3600/1852,candidate.pressure,"model_low",true)
+            kind=candidate.thermal_core==:warm ? "model_warm" : candidate.thermal_core==:cold ? "model_cold" : "model_low"
+            sample=StormSample(now,candidate.lon,candidate.lat,candidate.wind_mps*3600/1852,candidate.pressure,kind,true)
             push!(system.samples,sample)
-            metrics[(system.id,now)]=(pressure_depth_hpa=candidate.depth,vorticity_s=candidate.vorticity,
-                wind_mps=candidate.wind_mps,layer=layer,sigma=Float64(d.layers[layer]),i=candidate.i,j=candidate.j)
+            metrics[(system.id,now)]=merge((pressure_depth_hpa=candidate.depth,vorticity_s=candidate.vorticity,
+                wind_mps=candidate.wind_mps,layer=layer,sigma=Float64(d.layers[layer]),i=candidate.i,j=candidate.j),
+                (;candidate.thermal_core,candidate.lower_anomaly_k,candidate.upper_anomaly_k,
+                    candidate.lower_sigmas,candidate.upper_sigmas,candidate.thermal_reason,
+                    candidate.circulation,candidate.quadrant_wind_mps))
             push!(current,index)
         end
         previous=current

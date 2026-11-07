@@ -23,13 +23,20 @@ implementation ordering in the backlog is a recommendation, not a new user manda
 
 Storm Tracker has separate illustrative-scenario and model-candidate sources.
 `src/detection.jl` detects pressure/vorticity candidates from the current data;
-these are MODEL_LOW / L? and must not be classified as tropical storms or SSHWS.
+`src/structure.jl` adds exploratory thermal and quadrant-wind evidence. Model
+groups MODEL_WARM / W, MODEL_COLD / C and MODEL_LOW / L? are not confirmed
+tropical/extratropical cyclone types and must not be assigned SSHWS.
 Read `docs/MODEL_DETECTION.md` before changing criteria/tracking. The scenario
 loader remains separate; see `scenarios/README.md` for its classification rules.
 US cyclone definitions and English primary sources are recorded in
 `STORM_CLASSIFICATION_US.txt`; classification rules live in `src/classification.jl`.
 Nature, basin and 1-minute/10-m wind basis are separate. WPAC STY begins at
 130 kt, not the SSHWS C5 threshold of 137 kt. Camera region must not change basin.
+After the user's crowded-map screenshot, model mode defaults to active tracks,
+small stationary markers and only the selected label/trail. Filters apply to
+current-frame diagnostics; full born-track history requires an explicit choice.
+An expired selection must not hide the current candidates' information. Keep
+hidden filter-menu input scoped just like all other mode-specific controls.
 
 Mode-specific widgets must use `src/ui_scope.jl` input scoping. Hiding a Makie
 Menu scene alone does not prevent its invisible hit area receiving mouse input.

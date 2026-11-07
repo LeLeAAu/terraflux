@@ -26,22 +26,25 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
     source_menu=add(Menu(panel[2,1],options=[("Kịch bản minh họa",:scenario),("Ứng viên từ mô hình",:model)],default=1,width=280))
     badge=Observable("KỊCH BẢN MINH HỌA / không phải mô hình")
     add(Label(panel[3,1],badge,fontsize=11,color="#f8c448",halign=:left,justification=:left))
-    systemmenu = add(Menu(panel[4,1],options=[(s.id*" / "*s.name,s.id) for s in scenario.systems],default=1,width=280))
-    unitmenu = add(Menu(panel[5,1],options=[("Gió: knot",:kn),("Gió: m/s",:ms),("Gió: km/h",:kmh),("Gió: mph",:mph)],default=1,width=280))
+    filter_menu=add(Menu(panel[4,1],options=[("Đang hoạt động",:active),("Dấu hiệu lõi ấm",:warm),
+        ("Dấu hiệu lõi lạnh",:cold),("Hỗn hợp / chưa rõ",:other),("Tất cả + lịch sử",:history)],default=1,width=280))
+    rowsize!(panel,4,Fixed(0))
+    systemmenu = add(Menu(panel[5,1],options=[(s.id*" / "*s.name,s.id) for s in scenario.systems],default=1,width=280))
+    unitmenu = add(Menu(panel[6,1],options=[("Gió: knot",:kn),("Gió: m/s",:ms),("Gió: km/h",:kmh),("Gió: mph",:mph)],default=1,width=280))
     card = Observable("")
-    add(Label(panel[6,1],card,fontsize=12,halign=:left,justification=:left,tellwidth=false))
-    buttons = GridLayout(panel[7,1])
+    add(Label(panel[7,1],card,fontsize=12,halign=:left,justification=:left,tellwidth=false))
+    buttons = GridLayout(panel[8,1])
     physical = add(Button(buttons[1,1],label="Trường vật lý",buttoncolor="#192332",labelcolor=:white))
     globe = add(Button(buttons[1,2],label="Địa cầu 3D",buttoncolor="#192332",labelcolor=:white))
-    options = GridLayout(panel[8,1])
+    options = GridLayout(panel[9,1])
     trails = add(Checkbox(options[1,1],checked=true))
     add(Label(options[1,2],"Giữ lịch sử quỹ đạo",halign=:left,fontsize=13))
     reduced = add(Checkbox(options[2,1],checked=false))
     add(Label(options[2,2],"Giảm hiệu ứng / ngừng xoay",halign=:left,fontsize=13))
-    region = add(Menu(panel[9,1],options=[("Tây Bắc Thái Bình Dương",:wpac),("Toàn cầu",:global)],default=1,width=280))
-    start = add(Button(panel[10,1],label="Tới mốc đầu",buttoncolor="#192332",labelcolor=:white))
+    region = add(Menu(panel[10,1],options=[("Tây Bắc Thái Bình Dương",:wpac),("Toàn cầu",:global)],default=1,width=280))
+    start = add(Button(panel[11,1],label="Tới mốc đầu",buttoncolor="#192332",labelcolor=:white))
     note=Observable("Gió kịch bản: duy trì 1 phút / 10 m.\nChưa có ACE, ENSO và tác động.\nBiểu tượng không phải bán kính bão.")
-    add(Label(panel[11,1],note,fontsize=11,color="#a6b7c8",halign=:left,justification=:left))
+    add(Label(panel[12,1],note,fontsize=11,color="#a6b7c8",halign=:left,justification=:left))
     rowgap!(panel,6)
     ax = Axis(mapposition;backgroundcolor="#070e20",xlabel="Kinh độ",ylabel="Vĩ độ",aspect=DataAspect(),
         xticks=100:10:180,yticks=-90:10:90,xgridcolor=(:white,0.15),ygridcolor=(:white,0.15))
@@ -71,38 +74,44 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
         end
     end
     function ensure_handle!(system)
-        path_categories=system.samples[1].kind == "model_low" ? (:MODEL_LOW,) : categories
+        path_categories=startswith(system.samples[1].kind,"model_") ? (:MODEL_LOW,:MODEL_WARM,:MODEL_COLD) : categories
         if haskey(handles,system.id)
             h=handles[system.id]
             ensure_paths!(h,path_categories)
             return h
         end
         member=Observable(true)
-        trail_visible=lift((show,in_catalog)->show && in_catalog,trails.checked,member)
+        history_visible=Observable(true)
+        trail_visible=lift((show,in_catalog,history)->show && in_catalog && history,trails.checked,member,history_visible)
+        is_model=Observable(false)
         position = Observable([Point2f(0,0)])
         visible = Observable(false)
         color = Observable(parse(RGBAf,CATEGORY_STYLES[:L][3]))
         rotation = Observable(0f0)
         symbol = Observable("L")
         name = Observable(system.id)
+        label_visible=Observable(false)
         size = Observable(style.size)
         has_sprite = Observable(false)
         sprite_image = Observable(fill(RGBAf(0,0,0,0),1,1))
-        procedural_visible = lift((v,s) -> v && !s,visible,has_sprite)
+        procedural_visible = lift((v,s,m) -> v && !s && !m,visible,has_sprite,is_model)
+        glow_visible=lift((v,m)->v && !m,visible,is_model)
         sprite_visible = lift((v,s) -> v && s,visible,has_sprite)
         symbol_visible = lift((v,s) -> v && (!s || style.show_symbol_on_sprite),visible,has_sprite)
         glowcolor = lift(c -> RGBAf(c.r,c.g,c.b,style.glow_opacity),color)
-        scatter!(ax,position;color=glowcolor,markersize=lift(s -> s*style.glow_scale,size),visible)
+        scatter!(ax,position;color=glowcolor,markersize=lift(s -> s*style.glow_scale,size),visible=glow_visible)
         scatter!(ax,position;marker=spiral,color,markersize=size,rotation=rotation,visible=procedural_visible)
         scatter!(ax,position;marker=sprite_image,color=:white,markersize=size,rotation=rotation,visible=sprite_visible)
-        scatter!(ax,position;color,markersize=31,strokecolor="#dcecf5",strokewidth=1.3,visible=procedural_visible)
-        text!(ax,position;text=symbol,align=(:center,:center),fontsize=18,font=:bold,color="#091320",visible=symbol_visible)
+        scatter!(ax,position;color,markersize=lift((m,s)->m ? s : 31f0,is_model,size),
+            strokecolor="#dcecf5",strokewidth=1.3,visible=lift((v,s)->v && !s,visible,has_sprite))
+        text!(ax,position;text=symbol,align=(:center,:center),fontsize=lift(m->m ? 12 : 18,is_model),font=:bold,color="#091320",visible=symbol_visible)
         text!(ax,position;text=name,offset=(34,8),fontsize=15,font=:bold,color=:white,
-            strokecolor=(:black,0.8),strokewidth=1.2,visible)
+            strokecolor=(:black,0.8),strokewidth=1.2,visible=label_visible)
         paths = Dict{Symbol,Observable{Vector{Point2f}}}()
         ending = Observable(Point2f[])
         scatter!(ax,ending;marker=:xcross,color="#b6bac4",markersize=11,visible=trail_visible)
-        h=(;position,visible,color,rotation,symbol,name,size,paths,ending,has_sprite,sprite_image,member,trail_visible)
+        h=(;position,visible,color,rotation,symbol,name,size,paths,ending,has_sprite,sprite_image,member,trail_visible,
+            history_visible,label_visible,is_model)
         handles[system.id]=h
         ensure_paths!(h,path_categories)
         h
@@ -116,8 +125,26 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
         align=(:left,:top),fontsize=11,color=:white,depth_shift=-0.06f0)
     summary = Observable("")
     text!(ax,Point2f(0.98,0.04);text=summary,space=:relative,align=(:right,:bottom),fontsize=12,color="#66ded0")
-    listed_systems()=catalog[] === nothing ? StormSystem[] : source_menu.selection[] == :model ?
-        filter(s->s.samples[1].time<=clock[],catalog[].systems) : catalog[].systems
+    function matches_group(metric,mode)
+        mode in (:active,:history) && return true
+        mode==:other ? metric.thermal_core in (:unknown,:mixed) : metric.thermal_core==mode
+    end
+    function listed_systems()
+        catalog[] === nothing && return StormSystem[]
+        source_menu.selection[] != :model && return catalog[].systems
+        born=filter(s->s.samples[1].time<=clock[],catalog[].systems)
+        filter_menu.selection[]==:history && return born
+        filter(born) do system
+            state=storm_state(system,clock[])
+            state!==nothing && matches_group(catalog[].metrics[(system.id,clock[])],filter_menu.selection[])
+        end
+    end
+    function option_label(system,is_model)
+        !is_model && return system.id*" / "*system.name
+        samples=filter(s->s.active && s.time<=clock[],system.samples)
+        kind=last(samples).kind
+        system.id*" / "*(kind=="model_warm" ? "Lõi ấm" : kind=="model_cold" ? "Lõi lạnh" : "Chưa rõ")
+    end
     function refresh!()
         updating[] && return
         updating[]=true
@@ -134,18 +161,23 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
             end
             # Model IDs that are born in future frames must not appear in the menu yet.
             listed=listed_systems()
-            options=isempty(listed) ? [(is_model ? "Chưa có ứng viên tại mốc này" : "Không có hệ thống",nothing)] : [(s.id*" / "*s.name,s.id) for s in listed]
+            options=isempty(listed) ? [(is_model ? "Không có ứng viên phù hợp" : "Không có hệ thống",nothing)] : [(option_label(s,is_model),s.id) for s in listed]
             if systemmenu.options[] != options
+                previous_id=systemmenu.selection[]
                 systemmenu.is_open[]=false
                 systemmenu.options[]=options
+                selected_index=findfirst(option->option[2]==previous_id,options)
+                systemmenu.i_selected[]=selected_index===nothing ? 1 : selected_index
             end
             systemmenu.selection[] === nothing && !isempty(listed) && (systemmenu.i_selected[]=1)
             states = Dict(s.id=>storm_state(s,now) for s in listed)
-            for h in values(handles); h.member[]=false; h.visible[]=false; end
+            for h in values(handles); h.member[]=false; h.visible[]=false; h.label_visible[]=false; end
             selected_id = systemmenu.selection[]
             for system in listed
                 h = ensure_handle!(system)
                 h.member[]=true
+                h.is_model[]=is_model
+                h.history_visible[]=!is_model || system.id==selected_id || filter_menu.selection[]==:history
                 state = states[system.id]
                 h.visible[] = state !== nothing
                 if state !== nothing
@@ -156,14 +188,17 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
                     selected_state = get(states,selected_id,nothing)
                     crowded = selected_state !== nothing && system.id != selected_id &&
                         hypot(state.lon-selected_state.lon,state.lat-selected_state.lat) < 6
-                    h.name[] = crowded || (is_model && system.id != selected_id) ? system.id : system.id*"\n"*system.name
-                    h.size[] = system.id == selected_id ? style.selected_size : style.size
+                    h.name[] = is_model ? system.id*"\n"*CATEGORY_STYLES[category][2] :
+                        crowded ? system.id : system.id*"\n"*system.name
+                    h.label_visible[]=!is_model || system.id==selected_id
+                    h.size[] = is_model ? (system.id==selected_id ? 0.6style.selected_size : 0.4style.size) :
+                        system.id == selected_id ? style.selected_size : style.size
                     sprite=icon_sprite(style,category)
                     h.has_sprite[] = sprite !== nothing
                     if sprite !== nothing
                         h.sprite_image[] = icon_frame(sprite,elapsed[];reduced=reduced.checked[])
                     end
-                    h.rotation[] = icon_rotation(style,state.lat,elapsed[];reduced=reduced.checked[],sprite)
+                    h.rotation[] = is_model && sprite===nothing ? 0f0 : icon_rotation(style,state.lat,elapsed[];reduced=reduced.checked[],sprite)
                 end
                 segments = history_segments(system,now)
                 for category in keys(h.paths)
@@ -173,7 +208,8 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
                 h.ending[] = !final.active && now >= final.time ? [Point2f(final.lon,final.lat)] : Point2f[]
             end
             if selected_id === nothing || isempty(listed)
-                card[]=!isempty(model_error[]) ? first(model_error[],220) : catalog[] === nothing ? "Đang phân tích dữ liệu..." : "Không có ứng viên đã xuất hiện."
+                card[]=!isempty(model_error[]) ? first(model_error[],220) : catalog[] === nothing ? "Đang phân tích dữ liệu..." :
+                    "Không có ứng viên phù hợp\nở mốc và bộ lọc đang chọn.\nChọn nhóm khác hoặc Tới mốc đầu."
             else
                 selected = only(filter(s -> s.id == selected_id,listed))
                 state = states[selected_id]
@@ -182,7 +218,10 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
                     metric=catalog[].metrics[(selected.id,now)]
                     unit=unitmenu.selection[]
                     label=Dict(:kn=>"kn",:ms=>"m/s",:kmh=>"km/h",:mph=>"mph")[unit]
-                    card[]=@sprintf("%s / ứng viên\nÔ tâm %.2f° / %.2f°\nMSLP %.2f hPa · Δp %.2f\nζ %.2e s⁻¹\nMax ô σ=%.4f: %.1f %s\nKhông phải gió 10 m / 1 phút.",selected.id,state.lon,state.lat,state.pressure_hpa,metric.pressure_depth_hpa,metric.vorticity_s,catalog[].sigma,wind_value(state.wind_knots,unit),label)
+                    anomaly(v)=v===nothing ? "thiếu" : @sprintf("%+.2f",v)
+                    circulation=metric.circulation==:supported ? "đạt 4/4 phía" : metric.circulation==:unknown ? "thiếu dữ liệu" : "chưa đạt 4 phía"
+                    category=storm_class(state.kind,state.wind_knots)
+                    card[]=@sprintf("%s · %s\nΔT giữa/trên: %s / %s K\nGió xoáy: %s\nÔ tâm %.2f° / %.2f°\nMSLP %.2f hPa · Δp %.2f\nζ %.2e s⁻¹\nMax ô σ=%.4f: %.1f %s\nKhông phải gió 10 m / 1 phút.",selected.id,CATEGORY_STYLES[category][2],anomaly(metric.lower_anomaly_k),anomaly(metric.upper_anomaly_k),circulation,state.lon,state.lat,state.pressure_hpa,metric.pressure_depth_hpa,metric.vorticity_s,catalog[].sigma,wind_value(state.wind_knots,unit),label)
                 elseif state === nothing
                     status = now < selected.samples[1].time ? "Chưa xuất hiện tại thời điểm này." : (is_model ? "Không đạt tiêu chí ở mốc này." : "Không còn hoạt động / ngoài dữ liệu.")
                     card[] = "$(selected.id)\n$(display_name)\n$status\nNguồn: $(is_model ? "mô hình" : "kịch bản minh họa")."
@@ -196,17 +235,20 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
             count_active = count(v -> v !== nothing,values(states))
             if is_model
                 badge[]="ỨNG VIÊN TỪ DỮ LIỆU MÔ HÌNH"
-                title[]="STORM TRACKER / ỨNG VIÊN XOÁY MÔ HÌNH\nChẩn đoán áp thấp + xoáy · Không gán cấp bão SSHWS"
-                note[]="L? không phải cấp bão.\nMất dấu không đồng nghĩa tan.\nGió tầng mô hình, không phải gió 10 m."
+                title[]="STORM TRACKER / ỨNG VIÊN XOÁY MÔ HÌNH\nPhân nhóm lõi nhiệt + gió · Không gán cấp bão SSHWS"
+                note[]="Chỉ nhãn/quỹ đạo tâm đang chọn.\nTất cả + lịch sử: hiện cả track cũ.\nW/C là dấu hiệu, chưa phải cấp bão."
                 if catalog[] !== nothing
                     c=catalog[].config
-                    legend[]=@sprintf("ỨNG VIÊN MÔ HÌNH / L?\nCực tiểu MSLP · Δp ≥ %.1f hPa\nζ xoáy thuận ≥ %.1e s⁻¹\nTầng σ = %.4f · Không SSHWS\n×: mất tiêu chí, không suy ra tan",c.pressure_depth_hpa,c.cyclonic_vorticity_s,catalog[].sigma)
+                    legend[]=@sprintf("CẤU TRÚC MÔ HÌNH / SƠ BỘ\nW: lõi ấm · C: lõi lạnh\nHai dải ΔT cùng ≥ %.1f K / ≤ −%.1f K\nL?: hỗn hợp hoặc thiếu dữ liệu\nGió 4 phía: xem thẻ · Không SSHWS\n×: mất tiêu chí, không suy ra tan",c.thermal_anomaly_k,c.thermal_anomaly_k)
                     reportindex=findfirst(==(now),getfield.(catalog[].reports,:time))
                     if reportindex === nothing
                         summary[]="Không có dữ liệu mô hình tại mốc này."
                     else
                         report=catalog[].reports[reportindex]
-                        summary[]="$count_active ứng viên ở mốc này / mô hình\nÔ hữu hạn: P $(report.valid_pressure)/$(report.total_cells) · gió $(report.valid_wind)/$(report.total_cells)"*(report.capped ? " · đã giới hạn số tâm" : "")
+                        current_metrics=[metric for ((_,time),metric) in catalog[].metrics if time==now]
+                        warm=count(m->m.thermal_core==:warm,current_metrics)
+                        cold=count(m->m.thermal_core==:cold,current_metrics)
+                        summary[]="Hiện $count_active/$(report.kept) tâm · W $warm / C $cold / L? $(report.kept-warm-cold)\nÔ hữu hạn: P $(report.valid_pressure)/$(report.total_cells) · gió $(report.valid_wind)/$(report.total_cells)"*(report.capped ? " · đã giới hạn số tâm" : "")
                     end
                 else
                     legend[]="ỨNG VIÊN MÔ HÌNH / L?\nChờ phân tích dữ liệu áp suất/gió.\nKhông phân loại bão nhiệt đới."
@@ -225,10 +267,14 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
     end
     on(source_menu.selection) do source
         systemmenu.is_open[]=false
+        filter_menu.is_open[]=false
+        rowsize!(panel,4,Fixed(source==:model ? 34 : 0))
+        filter_menu.blockscene.visible[]=active[] && source==:model
         region.i_selected[]=source == :model ? 2 : 1
         refresh!()
     end
     on(clock) do _; refresh!(); end
+    on(filter_menu.selection) do _; refresh!(); end
     function poll_model!()
         source_menu.selection[] == :model || return
         result=model_provider()
@@ -249,7 +295,13 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
     on(physical.clicks) do _; open_selected(false); end
     on(globe.clicks) do _; open_selected(true); end
     on(start.clicks) do _
-        catalog[] !== nothing && !isempty(catalog[].systems) && on_start(minimum(s.samples[1].time for s in catalog[].systems))
+        catalog[] === nothing && return
+        if source_menu.selection[]==:model
+            times=[time for ((_,time),metric) in catalog[].metrics if matches_group(metric,filter_menu.selection[])]
+            isempty(times) ? (card[]="Không có ứng viên thuộc nhóm này\ntrong tệp/phiên hiện có.") : on_start(minimum(times))
+        elseif !isempty(catalog[].systems)
+            on_start(minimum(s.samples[1].time for s in catalog[].systems))
+        end
     end
     pressed = Ref{Union{Nothing,Tuple{Float64,Float64}}}(nothing)
     on(events(ax).mousebutton,priority=3) do event
@@ -282,7 +334,9 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
         active[] = enabled
         ax.blockscene.visible[] = enabled
         ax.scene.visible[] = enabled
-        for widget in widgets; widget.blockscene.visible[] = enabled; end
+        for widget in widgets
+            widget.blockscene.visible[]=enabled && (widget !== filter_menu || source_menu.selection[]==:model)
+        end
     end
     function animate!(seconds)
         elapsed[] = seconds
@@ -292,8 +346,9 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
             state = storm_state(system,clock[])
             state === nothing && continue
             handle=handles[system.id]
+            handle.visible[] || continue
             sprite=icon_sprite(style,storm_class(state.kind,state.wind_knots))
-            rotation=icon_rotation(style,state.lat,seconds;reduced=reduced.checked[],sprite)
+            rotation=handle.is_model[] && sprite===nothing ? 0f0 : icon_rotation(style,state.lat,seconds;reduced=reduced.checked[],sprite)
             handle.rotation[] != rotation && (handle.rotation[] = rotation)
             if sprite !== nothing
                 image=icon_frame(sprite,seconds;reduced=reduced.checked[])
@@ -304,7 +359,7 @@ function build_tracker(sideposition, mapposition, timestamp; on_physical, on_sta
     scope_widget_inputs!(widgets)
     refresh!()
     set_active!(false)
-    (;ax,active,clock,scenario,catalog,source_menu,title,poll_model!,style,handles,systemmenu,unitmenu,trails,reduced,region,start,card,summary,
+    (;ax,active,clock,scenario,catalog,source_menu,filter_menu,title,poll_model!,style,handles,systemmenu,unitmenu,trails,reduced,region,start,card,summary,legend,listed_systems,
         physical,globe,refresh!,set_active!,reset!,animate!)
 end
 end

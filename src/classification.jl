@@ -14,13 +14,17 @@ source metadata, independent of the camera. SSHWS outside hurricane basins is an
 explicit wind-equivalent display, not an official local category.
 """
 function classify_system(kind,wind;basin=:unspecified,wind_average_minutes=nothing,wind_height_m=nothing)
-    kind in (US_KINDS...,"model_low") || throw(ArgumentError("Loại hệ thống không hỗ trợ: $kind"))
+    kind in (US_KINDS...,"model_low","model_warm","model_cold") || throw(ArgumentError("Loại hệ thống không hỗ trợ: $kind"))
     basin in US_BASINS || throw(ArgumentError("Lưu vực không hỗ trợ: $basin"))
     isfinite(wind) && wind>=0 || throw(ArgumentError("Gió phải hữu hạn, không âm."))
     result(category,code,label;sshws=nothing,equivalent=false,major_hurricane=false,super_typhoon=false,reason="") =
         (;nature=String(kind),basin,category,code,label,sshws,equivalent,major_hurricane,super_typhoon,reason)
     kind=="model_low" && return result(:MODEL_LOW,"L?","Ứng viên xoáy mô hình";
         reason="Chưa xác nhận cấu trúc nhiệt đới; gió tầng mô hình không phải gió duy trì 1 phút ở 10 m.")
+    kind=="model_warm" && return result(:MODEL_WARM,"W","Dấu hiệu lõi ấm";
+        reason="Dị thường nhiệt hai dải sigma; chưa xác nhận tropical cyclone hay gió chuẩn SSHWS.")
+    kind=="model_cold" && return result(:MODEL_COLD,"C","Dấu hiệu lõi lạnh";
+        reason="Dị thường nhiệt hai dải sigma; chưa xác nhận front hay nguồn năng lượng ngoại nhiệt đới.")
     kind=="low" && return result(:LOW,"LOW","Vùng áp thấp";reason="Chưa khai báo cấu trúc xoáy thuận nhiệt đới.")
     kind=="disturbance" && return result(:L,"DB","Nhiễu động nhiệt đới")
     kind=="extratropical" && return result(:EX,"EX","Xoáy thuận ngoại nhiệt đới")

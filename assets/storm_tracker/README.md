@@ -66,8 +66,12 @@ rotate = true
 ```
 
 Các key hỗ trợ: `L`, `D`, `SD`, `S`, `SS`, `EX`, `RL` (ký hiệu ×), `C1`…`C5`
-và `LOW`, `POST`, `UNKNOWN`, `MODEL_LOW` (ứng viên xoáy mô hình, ký hiệu L?). `MODEL_LOW` dùng ảnh riêng
+và `LOW`, `POST`, `UNKNOWN`, `MODEL_LOW` (L?), `MODEL_WARM` (W), `MODEL_COLD` (C).
+Ba nhóm `MODEL_*` dùng ảnh riêng
 nếu khai báo, nếu không dùng hình dự phòng; không mượn default của bão nhiệt đới.
+Hình dự phòng của mô hình là chấm tròn nhỏ W/C/L?, không xoay; các nhóm kịch bản
+vẫn có cánh xoáy. Kích thước chấm mô hình bằng 0.4×`size`, đang chọn bằng
+0.6×`selected_size`. Có thể dùng ảnh/strip riêng cho từng `MODEL_*` để thay hình.
 Ảnh nên dùng màu/ký hiệu nhất quán với chú giải phân loại. `file` rỗng nghĩa là
 bỏ cấu hình ảnh đó; nếu không có ảnh riêng và default cũng rỗng, dùng hình vẽ dự
 phòng. Tệp không tồn tại, số khung không chia hết chiều rộng hoặc cấu hình sai

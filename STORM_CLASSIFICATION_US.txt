@@ -135,10 +135,16 @@ Ngưỡng được tập trung tại US_TROPICAL_BOUNDS; không rải nhiều b�
 - Cường độ/áp suất kịch bản chỉ nội suy giữa hai mốc cùng kind; khi
   khác kind giữ giá trị mốc trước đến mốc chuyển loại, tránh tạo một
   remnant low giả với gió >=34 kt. Vị trí vẫn nội suy như trước.
-- Nguồn mô hình hiện chỉ phát hiện cực tiểu MSLP kèm xoáy thuận từ gió
-  tầng sigma. Không có xác nhận hoàn lưu kín bề mặt, lõi ấm, đối lưu
-  sâu có tổ chức và gió 1 phút/10 m. Vì vậy giữ MODEL_LOW / L?, kể cả
-  khi cực đại gió một ô rất lớn. L? không phải tên loại nghiệp vụ NOAA.
+- Nguồn mô hình phát hiện cực tiểu MSLP kèm xoáy thuận từ gió tầng sigma,
+  rồi chẩn đoán dị thường nhiệt hai dải sigma và gió tiếp tuyến bốn phía.
+  MODEL_WARM / W: dấu hiệu lõi ấm; MODEL_COLD / C: dấu hiệu lõi lạnh;
+  MODEL_LOW / L?: hỗn hợp hoặc chưa đủ dữ liệu. Nhóm nhiệt dựa vào số
+  liệu từng mốc, không dựa vào vĩ độ hay cực đại gió. Đổi nhóm không đổi ID.
+  Đây là nhóm chẩn đoán của project, KHÔNG phải mã nghiệp vụ NOAA. Ngưỡng
+  và phương pháp thử nghiệm ở docs/MODEL_DETECTION.md, src/structure.jl.
+  Chưa xác nhận front, hoàn lưu kín bề mặt, lõi ấm theo phương pháp kiểm
+  định, đối lưu sâu có tổ chức hay gió 1 phút/10 m. Không tự đổi W thành
+  TD/TS/TY hoặc C thành EX; không xếp SSHWS từ cực đại gió một ô.
 - Không tự nhân một hệ số chung để biến gió tầng sigma/gió 10 phút/
   gió giật thành gió 1 phút ở 10 m. Muốn phân loại mô hình thật cần bổ
   sung chẩn đoán cấu trúc và dữ liệu gió chuẩn có phương pháp được kiểm chứng.
