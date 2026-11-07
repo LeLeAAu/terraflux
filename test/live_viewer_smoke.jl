@@ -4,6 +4,7 @@ include(joinpath(@__DIR__,"..","src","viewer.jl"))
 using .TerraFluxViewer
 using .TerraFluxViewer.TerraFluxData
 using .TerraFluxViewer.TerraFluxLive
+using .TerraFluxViewer.TerraFluxDetection
 path = joinpath(@__DIR__,"..","run_0001","output.nc")
 data = load_weather(path)
 root = mktempdir(;prefix="terraflux gui test ")
@@ -12,6 +13,7 @@ screen = display(viewer.fig)
 function await_gui(predicate;timeout=600)
     result = timedwait(timeout;pollint=0.05) do
         status = viewer.poll_live!()
+        viewer.tracker.poll_model!()
         status !== nothing && status["state"] == "error" && error(status["error"])
         predicate(status)
     end
@@ -33,6 +35,16 @@ try
         @test viewer.slider.range[] == 1:2
         @test viewer.selected[] == (60,30)
         @test viewer.mapvalues[][1:end-1,:] == frame(viewer.history[],:temp,8,2)
+        viewer.viewmenu.i_selected[]=3
+        viewer.tracker.source_menu.i_selected[]=2
+        await_gui(s -> viewer.tracker.catalog[] isa ModelStormSet)
+        model=viewer.tracker.catalog[]
+        @test model.source_path==viewer.history[].path
+        @test length(model.reports)==2
+        @test model.reports[1].valid_pressure==0
+        @test model.reports[1].kept==0
+        @test model.reports[2].valid_pressure>0
+        viewer.tracker.source_menu.i_selected[]=1
         viewer.sourcemenu.i_selected[] = 1
         @test viewer.mapvalues[][1:end-1,:] == frame(data,:temp,8,41)
         @test viewer.slider.range[] == 1:41
@@ -51,6 +63,13 @@ try
         await_gui(s -> s["state"] == "paused" && s["completed"] == 2)
         @test viewer.time[] == 3
         @test viewer.history[].times[end]-viewer.history[].times[1] == Hour(12)
+        viewer.viewmenu.i_selected[]=3
+        viewer.tracker.source_menu.i_selected[]=2
+        await_gui(s -> viewer.tracker.catalog[] isa ModelStormSet && length(viewer.tracker.catalog[].reports)==3)
+        @test viewer.tracker.catalog[].source_path==viewer.history[].path
+        @test viewer.tracker.clock[]==viewer.history[].times[end]
+        viewer.tracker.source_menu.i_selected[]=1
+        viewer.viewmenu.i_selected[]=2
         viewer.runmodel.clicks[] += 1
         viewer.pausemodel.clicks[] += 1
         await_gui(s -> s["state"] == "paused" && s["sequence"] == viewer.session[].sequence)

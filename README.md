@@ -29,9 +29,9 @@ julia --project=. viewer.jl --setup
 julia --project=. viewer.jl /path/to/output.nc
 ```
 
-## Storm Tracker — bản đầu dùng kịch bản minh họa
+## Storm Tracker — kịch bản và ứng viên từ mô hình
 
-Chọn **Storm Tracker** trong menu góc trên phải. Với dữ liệu mẫu, kéo thanh thời gian tới **2000-01-04 00:00** (khung 13/41) để xem hai hệ thống cùng hoạt động, hoặc bấm **Tới đầu kịch bản** để bắt đầu từ ngày 1.
+Chọn **Storm Tracker** trong menu góc trên phải. Với dữ liệu mẫu, kéo thanh thời gian tới **2000-01-04 00:00** (khung 13/41) để xem hai hệ thống cùng hoạt động, hoặc bấm **Tới mốc đầu** để bắt đầu từ ngày 1.
 
 ![Storm Tracker](docs/storm_tracker.png)
 
@@ -43,9 +43,21 @@ Chọn **Storm Tracker** trong menu góc trên phải. Với dữ liệu mẫu, 
 - Các cánh biểu tượng xoay theo bán cầu, phục vụ đọc giao diện; kích thước và tốc độ animation không biểu thị bán kính hay tốc độ gió vật lý. Tên phụ được rút gọn khi hệ thống ở gần hệ thống đang chọn; chưa có bộ giải quyết mọi trường hợp nhãn chồng nhau.
 - Nội suy tuyến tính vị trí/gió giữa các mốc kịch bản; trạng thái loại hệ thống đổi tại mốc khai báo. Quỹ đạo tô theo cấp ở đầu từng đoạn; nhiễu động dùng nét chấm, tàn dư dùng nét đứt. Đường qua kinh tuyến đổi ngày được ngắt để không vẽ một dây nối ngang cả bản đồ.
 - Thang hiển thị dùng gió duy trì **1 phút / 10 m**, ngưỡng knot: D <34; S ≥34; C1 ≥64; C2 ≥83; C3 ≥96; C4 ≥113; C5 ≥137. Các nhóm ngoại nhiệt đới/tàn dư/nhiễu động do kịch bản khai báo; cận nhiệt đới dùng SD/SS theo ngưỡng 34 knot. Không tự phân loại gió trên các tầng T32 thành bão SSHWS.
-- Nền hiện là đa giác đất và đường bờ Natural Earth, kèm một số địa danh tham chiếu; chưa có ảnh vệ tinh. ACE, ENSO, thiệt hại, thương vong, biểu đồ mùa và nhận diện bão từ mô hình **chưa được triển khai**, không có số trang trí thay thế.
+- Nền hiện là đa giác đất và đường bờ Natural Earth, kèm một số địa danh tham chiếu; chưa có ảnh vệ tinh. ACE, ENSO, thiệt hại, thương vong, biểu đồ mùa và xác nhận/phân loại bão nhiệt đới từ mô hình **chưa được triển khai**, không có số trang trí thay thế.
 
 Ngày của kịch bản mẫu là 2000-01-01…2000-01-08 để trùng trục thời gian dữ liệu mẫu. Nếu mở tệp thời gian khác, kịch bản không tự dịch sang năm mới và có thể không có hệ thống trong khoảng đang xem. Hướng dẫn cấu trúc dữ liệu ở [`scenarios/README.md`](scenarios/README.md); yêu cầu đầy đủ và việc còn chờ ở [`docs/UI_BACKLOG.md`](docs/UI_BACKLOG.md).
+
+### Ứng viên từ dữ liệu khí quyển thật của mô hình
+
+Trong Storm Tracker, chọn nguồn **Ứng viên từ mô hình** ở đầu bảng bên trái, chờ phân tích rồi bấm **Tới mốc đầu**. Bộ phân tích đọc áp suất và gió của **tệp/phiên đang mở**, tìm cực tiểu MSLP có độ trũng áp suất và xoáy thuận, rồi nối tâm qua các mốc thời gian. Nhãn `MODEL-…` ổn định trong từng tập dữ liệu; chỉ hiện ID sau khi nó đã xuất hiện ở mốc đang xem.
+
+![Ứng viên từ mô hình](docs/model_detection.png)
+
+**`L?` chỉ là ứng viên xoáy/áp thấp, chưa xác nhận là bão nhiệt đới và không gán SSHWS.** Thẻ hiển thị MSLP ô tâm, độ trũng Δp, độ xoáy ζ và cực đại gió ô lưới trên tầng sigma thấp nhất. Gió này không phải gió 10 m duy trì 1 phút. Mất tiêu chí sẽ ngắt track, không mặc nhiên kết luận bão đã tan; không bù điểm bị thiếu hay nội suy trạng thái giữa các mốc mô hình.
+
+Hai nguồn được giữ riêng: dữ liệu DEMO không xuất hiện trong kết quả mô hình. Có thể chuyển sang trường vật lý/địa cầu để đối chiếu cùng ô và thời gian. Đổi tệp hoặc nhận mốc live mới sẽ làm mới cache phân tích; kết quả rỗng/dữ liệu thiếu được hiển thị rõ. Các file `.bat`/`.sh` mở Julia với 2 luồng; nếu chạy lệnh thủ công nên dùng `julia --threads=2 --project=. viewer.jl` để bộ phân tích có luồng tính riêng.
+
+Tiêu chí số, cách nối ID, công thức, dữ liệu thiếu và giới hạn khoa học được ghi đầy đủ trong **[MODEL_DETECTION.md](docs/MODEL_DETECTION.md)**. Đây là heuristic thử nghiệm trên lưới T32, chưa kiểm định độ chính xác với quan trắc; địa hình, rãnh áp và hệ ngoại nhiệt đới có thể tạo ứng viên giả. Chưa xác nhận lõi ấm/hoàn lưu kín hay cấp bão, ACE và tác động.
 
 ### Thay icon/animation bão
 
@@ -145,4 +157,12 @@ Kiểm tra menu bị ẩn không nhận chuột/phím và phần cấu hình/PNG
 julia --project=. test/menu_scopes.jl
 julia --project=. test/icon_style.jl
 julia --project=. test/icon_render.jl
+```
+
+Kiểm thử nhận diện ứng viên và tích hợp với NetCDF thật:
+
+```sh
+julia --project=. test/detection.jl
+# Cần màn hình/OpenGL, dùng 2 luồng cho phân tích nền:
+julia --threads=2 --project=. test/detection_viewer.jl
 ```

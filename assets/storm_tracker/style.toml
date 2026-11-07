@@ -25,7 +25,7 @@ frames = 1
 fps = 8.0
 rotate = false
 
-# Optional per-category override. Supported keys: L, D, SD, S, SS, EX, RL, C1..C5.
+# Optional per-category override. Supported keys: L, D, SD, S, SS, EX, RL, C1..C5, MODEL_LOW.
 # [sprites.C3]
 # file = "my_category3_strip.png"
 # frames = 8

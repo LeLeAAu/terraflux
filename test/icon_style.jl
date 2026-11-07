@@ -26,6 +26,7 @@ using .TerraFluxStormIcons
         style=load_icon_style(path)
         @test style.size == 48
         @test style.selected_size == 64
+        @test icon_sprite(style,:MODEL_LOW) === nothing # do not borrow a tropical default image
         sprite=icon_sprite(style,:C3)
         @test size(sprite.frames[1]) == (8,8)
         @test length(sprite.frames) == 2

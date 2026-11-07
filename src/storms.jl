@@ -4,6 +4,7 @@ export StormSample, StormSystem, StormScenario, load_scenario, storm_state, stor
        history_segments, wind_value, CATEGORY_STYLES
 
 const CATEGORY_STYLES = Dict(
+    :MODEL_LOW => ("L?", "Ứng viên xoáy mô hình", "#84ccd7"),
     :L => ("L", "Nhiễu động", "#50ddea"), :EX => ("EX", "Ngoại nhiệt đới", "#b6bac4"),
     :RL => ("×", "Áp thấp tàn dư", "#8f95a3"), :D => ("D", "Áp thấp nhiệt đới", "#469cf7"),
     :SD => ("SD", "Áp thấp cận nhiệt đới", "#ad78ed"), :S => ("S", "Bão nhiệt đới", "#67ed52"),
@@ -64,6 +65,7 @@ end
 
 "SSHWS lower bounds in knots for declared 1-minute, 10-m sustained winds."
 function storm_class(kind, wind)
+    kind == "model_low" && isfinite(wind) && wind >= 0 && return :MODEL_LOW
     kind in KINDS && isfinite(wind) && wind >= 0 || throw(ArgumentError("Loại/gió không hợp lệ"))
     kind == "disturbance" && return :L
     kind == "extratropical" && return :EX
@@ -85,6 +87,7 @@ function storm_state(system::StormSystem, time::DateTime)
     index = searchsortedlast(getfield.(samples,:time),time)
     a = samples[index]
     !a.active && return nothing
+    a.kind == "model_low" && time != a.time && return nothing
     (time == a.time || index == length(samples)) && return a
     b = samples[index+1]
     fraction = Dates.value(time-a.time)/Dates.value(b.time-a.time)

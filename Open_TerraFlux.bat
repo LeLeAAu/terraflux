@@ -16,9 +16,9 @@ exit /b 1
 "%JULIA_CMD%" --version
 echo Dang mo TerraFlux. Lan dau can Internet de cai thu vien va co the mat vai phut.
 if "%~1"=="" (
-    "%JULIA_CMD%" --project="%~dp0." "%~dp0viewer.jl" --setup
+    "%JULIA_CMD%" --threads=2 --project="%~dp0." "%~dp0viewer.jl" --setup
 ) else (
-    "%JULIA_CMD%" --project="%~dp0." "%~dp0viewer.jl" --setup "%~f1"
+    "%JULIA_CMD%" --threads=2 --project="%~dp0." "%~dp0viewer.jl" --setup "%~f1"
 )
 if errorlevel 1 (
     echo.

@@ -2,6 +2,7 @@
 using GLMakie, Test, TOML, Dates
 module TrackerFixture
 include(joinpath(@__DIR__,"..","src","storms.jl"))
+include(joinpath(@__DIR__,"..","src","detection.jl"))
 include(joinpath(@__DIR__,"..","src","ui_scope.jl"))
 include(joinpath(@__DIR__,"..","src","storm_icons.jl"))
 include(joinpath(@__DIR__,"..","src","tracker.jl"))

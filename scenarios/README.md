@@ -2,7 +2,8 @@
 
 `demo_storms.toml` là dữ liệu **khai báo thủ công để thử giao diện**. Không phải
 kết quả nhận diện từ SpeedyWeather, quan trắc hay dự báo. Bản này chỉ nhận provenance
-`illustrative_scenario`; nguồn nhập ngoài/nhận diện mô hình cần adapter riêng sau này.
+`illustrative_scenario`; nguồn nhập ngoài cần adapter riêng. Nguồn ứng viên mô hình hiện được tạo trực tiếp
+từ NetCDF bởi `src/detection.jl`, không nhập giả qua kịch bản TOML này.
 
 ```toml
 [scenario]

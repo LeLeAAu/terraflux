@@ -21,9 +21,11 @@ reference climatologies as computed model results.
 Keep the backlog current as work is actually implemented and validated. Proposed
 implementation ordering in the backlog is a recommendation, not a new user mandate.
 
-Storm Tracker currently reads explicitly labeled illustrative scenarios from
-`scenarios/demo_storms.toml`; it does not detect storms from SpeedyWeather output.
-See `scenarios/README.md` before changing its schema or classification rules.
+Storm Tracker has separate illustrative-scenario and model-candidate sources.
+`src/detection.jl` detects pressure/vorticity candidates from the current data;
+these are MODEL_LOW / L? and must not be classified as tropical storms or SSHWS.
+Read `docs/MODEL_DETECTION.md` before changing criteria/tracking. The scenario
+loader remains separate; see `scenarios/README.md` for its classification rules.
 
 Mode-specific widgets must use `src/ui_scope.jl` input scoping. Hiding a Makie
 Menu scene alone does not prevent its invisible hit area receiving mouse input.

@@ -65,7 +65,9 @@ fps = 8.0
 rotate = true
 ```
 
-Các key hỗ trợ: `L`, `D`, `SD`, `S`, `SS`, `EX`, `RL` (ký hiệu ×) và `C1`…`C5`.
+Các key hỗ trợ: `L`, `D`, `SD`, `S`, `SS`, `EX`, `RL` (ký hiệu ×), `C1`…`C5`
+và `MODEL_LOW` (ứng viên xoáy mô hình, ký hiệu L?). `MODEL_LOW` dùng ảnh riêng
+nếu khai báo, nếu không dùng hình dự phòng; không mượn default của bão nhiệt đới.
 Ảnh nên dùng màu/ký hiệu nhất quán với chú giải phân loại. `file` rỗng nghĩa là
 bỏ cấu hình ảnh đó; nếu không có ảnh riêng và default cũng rỗng, dùng hình vẽ dự
 phòng. Tệp không tồn tại, số khung không chia hết chiều rộng hoặc cấu hình sai

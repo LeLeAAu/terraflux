@@ -3,6 +3,8 @@ include("data.jl")
 include("globe.jl")
 include("live.jl")
 include("storms.jl")
+include("detection.jl")
+using .TerraFluxDetection
 include("ui_scope.jl")
 using .TerraFluxUIScope
 include("storm_icons.jl")
@@ -150,7 +152,23 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     colgap!(fig.layout, 28)
     rowgap!(fig.layout, 24)
     playing = Observable(false)
-    tracker = build_tracker(fig[2,1],maparea[2,1:2],d.times[time[]];icon_style_path,
+    analyzed_data=Ref{Any}(nothing)
+    analysis_task=Ref{Any}(nothing)
+    function model_provider()
+        if analysis_task[] === nothing || (istaskdone(analysis_task[]) && analyzed_data[] !== d)
+            snapshot=d
+            analyzed_data[]=snapshot
+            analysis_task[]=Threads.@spawn begin
+                try
+                    detect_tracks(snapshot)
+                catch err
+                    sprint(showerror,err)
+                end
+            end
+        end
+        istaskdone(analysis_task[]) && analyzed_data[] === d ? fetch(analysis_task[]) : nothing
+    end
+    tracker = build_tracker(fig[2,1],maparea[2,1:2],d.times[time[]];icon_style_path,model_provider,
         on_physical=(location,as_globe) -> begin
             selected[] = nearest_cell(d,location...)
             viewmenu.i_selected[] = as_globe ? 2 : 1
@@ -169,7 +187,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         colorbar.blockscene.visible[] = !is_tracker
         for widget in physical_widgets; widget.blockscene.visible[] = !is_tracker; end
         tracker.set_active!(is_tracker)
-        helptext[] = is_tracker ? "Kịch bản minh họa • Không phải nhận diện từ mô hình • Biểu tượng không chỉ bán kính bão" :
+        helptext[] = is_tracker ? "Chọn nguồn trong Storm Tracker • Biểu tượng là vị trí đại diện, không chỉ bán kính gió" :
             is_globe ? "Địa cầu 3D • Kéo chuột trái: xoay • Cuộn: thu phóng • Bấm trái: đọc giá trị" :
             "Bản đồ 2D • Cuộn: thu phóng • Chuột phải: di chuyển • Bấm trái: đọc giá trị"
         refresh()
@@ -201,8 +219,11 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         refresh_point()
         tracker.clock[] = d.times[t]
         if viewmenu.selection[] == :tracker
-            title[] = "STORM TRACKER / KỊCH BẢN MINH HỌA\n$(tracker.scenario.title) · Không phải nhận diện từ mô hình"
+            title[] = tracker.title[]
         end
+    end
+    on(tracker.title) do text
+        viewmenu.selection[] == :tracker && (title[]=text)
     end
     on(fieldmenu.selection) do f
         field[] = f
@@ -373,6 +394,7 @@ function launch(path)
             isopen(screen) || break
             try
                 viewer.poll_live!()
+                viewer.tracker.poll_model!()
             catch err
                 viewer.livestatus[] = "Không đọc được phiên: " * first(sprint(showerror,err),180)
             end

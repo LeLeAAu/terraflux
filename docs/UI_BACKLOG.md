@@ -45,7 +45,7 @@ Bằng chứng: `test/storms.jl` kiểm tra schema, ngưỡng, đơn vị, nội
 đồng hồ, chuyển 2D/3D và giữ nguyên dữ liệu mô hình. Các bộ kiểm tra viewer/live
 hiện có tiếp tục được dùng để kiểm tra hồi quy.
 
-Còn chờ: nhận diện/theo dõi thực từ mô hình, các nguồn nhập ngoài, bố cục bảng
+Còn chờ: xác nhận/phân loại bão nhiệt đới và nâng cấp theo dõi, các nguồn nhập ngoài, bố cục bảng
 nổi đầy đủ, nhãn tránh chồng tổng quát, camera bám, chọn đoạn lịch sử, chuyển màu/
 mờ tan mượt, icon trực tiếp trên 3D, các thống kê mùa và xuất video. Phần dưới giữ
 nguyên toàn bộ yêu cầu chi tiết để không bỏ sót khi hoàn thiện.
@@ -59,6 +59,22 @@ nguyên toàn bộ yêu cầu chi tiết để không bỏ sót khi hoàn thiệ
   cùng thư mục; hỗ trợ PNG trong suốt/dải PNG ngang nhiều khung, dùng chung hoặc
   riêng từng cấp. Hình procedural dự phòng và logic frame/xoay tách ở
   `src/storm_icons.jl`. Có kiểm tra cấu hình và pixel render của PNG.
+
+## Mốc nhận diện ứng viên mô hình
+
+- [x] Nguồn riêng **Ứng viên từ mô hình** đọc MSLP/u/v của tệp hoặc phiên đang xem;
+  tính độ xoáy cầu, cực tiểu áp suất và độ trũng so với vành xung quanh.
+- [x] Tiêu chí thử nghiệm công khai, loại dữ liệu thiếu/nền phẳng/xoáy nghịch;
+  ký hiệu `L?` / `MODEL_LOW`, gió tầng sigma được ghi khác gió chuẩn bề mặt.
+- [x] ID tiền tố ổn định, nối cặp gần nhất với giới hạn tốc độ/thời gian, không
+  bù mốc mất tín hiệu, không để lộ ID trước thời điểm sinh. Mất tiêu chí không
+  được diễn giải là tan bão; hết tệp không tự đánh dấu track đã tan.
+- [x] Tách hoàn toàn khỏi DEMO, nạp lại khi dữ liệu đổi, có trạng thái chờ/rỗng/lỗi,
+  mở cùng ô/thời gian trên 2D/3D và không sửa dữ liệu khí quyển.
+
+Bằng chứng và giới hạn: `docs/MODEL_DETECTION.md`, `test/detection.jl`,
+`test/detection_viewer.jl`. Đây **chưa phải bộ nhận diện bão nhiệt đới đã kiểm định**;
+chưa có lõi ấm/hoàn lưu kín, xử lý tách/hợp nhất hoặc đánh giá bằng quan trắc.
 
 ## Danh sách cần làm theo tài liệu nguồn
 
@@ -162,7 +178,8 @@ nguyên toàn bộ yêu cầu chi tiết để không bỏ sót khi hoàn thiệ
 ## Phụ thuộc cần giải quyết trước khi coi là kết quả vật lý
 
 - Hiện TerraFlux có trường khí quyển T32/8 tầng, xem 2D/3D, chạy phiên mới và
-  Storm Tracker dùng kịch bản minh họa; chưa có nhận diện bão hay mô hình tác động.
+  Storm Tracker có kịch bản và ứng viên từ dữ liệu mô hình; chưa xác nhận/phân loại
+  bão nhiệt đới và chưa có mô hình tác động.
 - Cần định nghĩa schema hệ thống + mẫu trạng thái theo thời gian + provenance
   (nhận diện mô hình / nhập ngoài / kịch bản), ID, quy tắc liên kết quỹ đạo.
 - Cần xác định gió dùng phân loại là đại lượng nào, tại tầng/độ cao nào và lấy
