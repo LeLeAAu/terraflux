@@ -1,4 +1,4 @@
-# Run with: julia --project=. viewer.jl [path/to/output.nc]
+# Run with: julia --project=. viewer.jl [path/to/output.nc or saved/session.toml]
 using Pkg
 if "--setup" in ARGS
     Pkg.instantiate()
@@ -11,6 +11,6 @@ try
     TerraFluxViewer.launch(path)
 catch err
     println(stderr, "\nKhông mở được TerraFlux: ", sprint(showerror, err))
-    println(stderr, "Hãy kiểm tra đường dẫn NetCDF và trình điều khiển đồ họa hỗ trợ OpenGL 3.3.")
+    println(stderr, "Hãy kiểm tra đường dẫn NetCDF/session.toml và trình điều khiển đồ họa hỗ trợ OpenGL 3.3.")
     rethrow()
 end

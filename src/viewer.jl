@@ -22,6 +22,7 @@ using .TerraFluxMapLayers
 using .TerraFluxHover
 using .TerraFluxTracker
 using .TerraFluxLive
+using .TerraFluxLive.TerraFluxSavedSessions
 using .TerraFluxGlobe
 using .TerraFluxData
 using GLMakie
@@ -35,7 +36,7 @@ const INK = colorant"#e8eef5"
 const MUTED = colorant"#a6b7c8"
 const ACCENT = colorant"#66ded0"
 
-function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessions"),
+function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessions"),resume_bundle=nothing,
         icon_style_path=joinpath(@__DIR__,"..","assets","storm_tracker","style.toml"),
         weather_style_path=joinpath(@__DIR__,"..","assets","weather","style.toml"))
     weatherstyle=load_weather_style(weather_style_path)
@@ -48,7 +49,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     end
     set_theme!(theme_dark(); fontsize=15, backgroundcolor=BG, textcolor=INK,
         Axis=(backgroundcolor=PANEL, xgridcolor=(:white, 0.08), ygridcolor=(:white, 0.08)))
-    fig = Figure(size=(1440, 860), figure_padding=26)
+    fig = Figure(size=(1440, 960), figure_padding=26)
     header = GridLayout(fig[1, 1:2])
     Label(header[1, 1], "TERRAFLUX", fontsize=30, font=:bold, color=ACCENT, halign=:left, tellwidth=false)
     Label(header[2, 1], "PHÒNG QUAN SÁT KHÍ QUYỂN", color=MUTED, fontsize=13, halign=:left, tellwidth=false)
@@ -261,6 +262,13 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     stepmodel = Button(livepanel[2,6],label="+6 giờ",buttoncolor=PANEL,labelcolor=INK)
     stopmodel = Button(livepanel[2,7],label="Kết thúc",buttoncolor=PANEL,labelcolor=INK)
     Label(livepanel[2,8],"Độc lập với phát lại",fontsize=12,color=MUTED)
+    persistence=GridLayout(livepanel[3,1:8])
+    savesession=Button(persistence[1,1],label="Lưu phiên",buttoncolor=PANEL,labelcolor=INK)
+    savedpath=Textbox(persistence[1,2],stored_string="",placeholder="Dán đường dẫn session.toml hoặc thư mục bản lưu",reset_on_defocus=false,tellwidth=false)
+    opensession=Button(persistence[1,3],label="Mở phiên đã lưu",buttoncolor=PANEL,labelcolor=INK)
+    colsize!(persistence,1,Fixed(130));colsize!(persistence,3,Fixed(160))
+    persistence_notice=Observable("Lưu khi tạm dừng · Mở bằng đường dẫn session.toml hoặc thư mục bản lưu.")
+    Label(persistence[2,1:3],persistence_notice,fontsize=11,color=MUTED,tellwidth=false,word_wrap=true)
     timeline = GridLayout(fig[4, 1:2])
     clocktext = Observable("")
     Label(timeline[1, 1:4], clocktext, fontsize=17, font=:bold, halign=:left)
@@ -458,6 +466,9 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     history = Ref{Union{Nothing,WeatherData}}(nothing)
     imported = Ref(0)
     last_intervention_notice=Ref("")
+    last_saved_seen=Ref("")
+    persistence_operation=Ref("")
+    save_previous_path=Ref("")
     function replace_data!(next)
         (next.lon == original.lon && next.lat == original.lat && next.layers == original.layers) ||
                 error("Phiên trực tiếp yêu cầu cùng lưới và tầng với dữ liệu đang mở.")
@@ -467,7 +478,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         slider.range[] = 1:length(d.times)
         set_close_to!(slider,length(d.times))
         gridtext[] = "Lưới đầu ra: $(length(d.lon)) × $(length(d.lat))\n$(length(d.layers)) tầng · $(length(d.times)) thời điểm\nPhóng to không tăng độ phân giải."
-        sourceinfo[] = sourcemenu.selection[] == :live ? "PHÁT LẠI / phiên mới · 2 khung/giây · $(basename(session[].directory))" :
+        sourceinfo[] = sourcemenu.selection[] == :live ? "PHÁT LẠI / phiên live · 2 khung/giây · $(basename(session[].directory))" :
             "PHÁT LẠI / tệp đã mở · 2 khung/giây · $(basename(original.path))"
         refresh()
     end
@@ -483,6 +494,10 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     function poll_live!()
         session[] === nothing && return
         status = read_status(session[])
+        if imported[]==0 && history[]===nothing && length(status["files"])>1
+            history[]=load_live_history(status["files"])
+            imported[]=length(status["files"])
+        end
         for path in status["files"][imported[]+1:end]
             chunk = load_live_chunk(path;initial=imported[] == 0)
             history[] = history[] === nothing ? chunk : append_weather(history[],chunk)
@@ -494,7 +509,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         state = status["state"]
         text = Dict("starting"=>"Đang khởi tạo (lần đầu có thể mất vài phút)",
             "paused"=>"Đã tạm dừng", "running"=>"Đang chạy", "stepping"=>"Đang tính một bước 6 giờ",
-            "complete"=>"Đã hoàn tất", "stopped"=>"Đã kết thúc", "error"=>"Lỗi mô phỏng")
+            "complete"=>"Đã hoàn tất", "stopped"=>"Đã kết thúc", "error"=>"Lỗi mô phỏng","saving"=>"Đang lưu phiên")
         message = get(text,state,state)
         pending = get(status,"sequence",0) < session[].sequence
         pending && (message *= " · lệnh đang chờ xử lý")
@@ -502,7 +517,25 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         state == "error" && (message *= " · " * first(get(status,"error","Xem worker.log"),180))
         command_error=get(status,"command_error","")
         isempty(command_error) || (message*=" · từ chối: "*first(command_error,100))
-        livestatus[] = "$message · Đã tính $(status["completed"]*6) giờ · $(basename(session[].directory))"
+        saved=get(status,"last_saved","")
+        if !isempty(saved) && saved!=last_saved_seen[]
+            Makie.set!(savedpath,saved);last_saved_seen[]=saved
+            message*=" · Đã lưu phiên (đường dẫn ở ô bên dưới)"
+        end
+        if persistence_operation[]=="save" && !isempty(saved) && saved!=save_previous_path[]
+            persistence_notice[]="Đã lưu đầy đủ. Có thể kết thúc phiên rồi mở lại bằng đường dẫn ở trên."
+            persistence_operation[]=""
+        elseif persistence_operation[]=="save" && (state=="error" || (!pending && state!="saving"))
+            problem=isempty(command_error) ? get(status,"error","") : command_error
+            isempty(problem) && (problem="Yêu cầu đã dừng hoặc chưa hoàn tất.")
+            persistence_notice[]="Không lưu được: "*first(problem,220)
+            persistence_operation[]=""
+        elseif persistence_operation[]=="open" && state in ("paused","complete","error")
+            persistence_notice[]=state=="error" ? "Không khôi phục được: "*first(status["error"],220) : state=="complete" ? "Đã mở mốc cuối. Phiên đã đủ giới hạn thời lượng." : "Đã khôi phục tại $(status["model_time"]). Bấm Chạy hoặc +6 giờ để tính tiếp."
+            persistence_operation[]=""
+        end
+        budget=haskey(status,"max_chunks") ? " / $(status["max_chunks"]*6)" : ""
+        livestatus[] = "$message · Đã tính $(status["completed"]*6)$budget giờ · $(basename(session[].directory))"
         notice=!isempty(command_error) ? first(command_error,240) : pending ? "Đang xử lý lệnh…" :
             get(status,"pending_edit",false) ? "Đã áp dụng. Khung đã lưu vẫn là trước tác động; bấm +6 giờ để xem phản ứng.\n"*get(status,"edit_summary","") :
             isempty(get(status,"edit_summary","")) ? "Chọn tâm/tầng và xem trước.\nChỉ dùng ở mốc cuối của phiên live đã tạm dừng." : get(status,"edit_summary","")
@@ -530,6 +563,8 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
                 session[] = start_session(;root=session_root,max_chunks=4durationmenu.selection[],truncation=run_truncation,layers=length(original.layers))
                 history[] = nothing
                 imported[] = 0
+                last_saved_seen[]="";persistence_operation[]=""
+                persistence_notice[]="Phiên mới · Tạm dừng sau ít nhất +6 giờ để lưu."
                 sourcemenu.i_selected[] = 2
                 poll_live!()
             end
@@ -556,10 +591,47 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     on(pausemodel.clicks) do _; request_model("pause"); end
     on(stepmodel.clicks) do _; request_model("step"); end
     on(stopmodel.clicks) do _; request_model("stop"); end
+    on(savesession.clicks) do _
+        try
+            session[]===nothing && error("Tạo phiên live trước khi lưu.")
+            save_previous_path[]=get(read_status(session[]),"last_saved","")
+            send_command!(session[],"save")
+            persistence_operation[]="save";persistence_notice[]="Đang lưu trạng thái và lịch sử. Chờ thông báo hoàn tất trước khi đóng."
+            poll_live!()
+        catch err
+            persistence_notice[]=first(sprint(showerror,err),240)
+        end
+    end
+    function open_saved!(path)
+        if session[]!==nothing && process_running(session[].process)
+            error("Bấm Kết thúc và chờ phiên hiện tại kết thúc trước khi mở bản lưu.")
+        end
+        path=strip(path)
+        length(path)>=2 && startswith(path,'"') && endswith(path,'"') && (path=path[nextind(path,firstindex(path)):prevind(path,lastindex(path))])
+        meta=saved_manifest(path;verify=false)
+        meta["config"]["truncation"]==run_truncation && meta["config"]["layers"]==length(original.layers) ||
+            error("Bản lưu khác lưới/tầng. Kéo session.toml vào Open_TerraFlux.bat để mở cửa sổ đúng lưới.")
+        session[]=resume_session(path;root=session_root)
+        history[]=nothing;imported[]=0;last_saved_seen[]=""
+        persistence_operation[]="open";persistence_notice[]="Đang kiểm tra và khôi phục phiên đã lưu…"
+        sourcemenu.i_selected[]=2
+        poll_live!()
+    end
+    on(opensession.clicks) do _
+        try;open_saved!(savedpath.displayed_string[]);catch err;persistence_notice[]=first(sprint(showerror,err),260);end
+    end
     refresh()
     notify(viewmenu.selection)
+    if resume_bundle!==nothing
+        try
+            open_saved!(resume_bundle)
+        catch
+            try;session[]===nothing || stop_session!(session[]);catch;end
+            rethrow()
+        end
+    end
     (; fig, ax, globe, tracker, session, history, sourcemenu, newrun, runmodel, pausemodel, stepmodel, stopmodel,
-        livestatus, poll_live!, replace_data!, viewmenu, resetview, vertexcolors, globe_marker, fieldmenu, layermenu, lockscale, slider, selected, field, layer, time,
+        livestatus, poll_live!, replace_data!, savesession,savedpath,opensession,persistence_notice,open_saved!, viewmenu, resetview, vertexcolors, globe_marker, fieldmenu, layermenu, lockscale, slider, selected, field, layer, time,
         pointtext, mapvalues, limits, play, back, forward, playing,
         weatherstyle,scalemenu,regionmenu,windtoggle,isobartoggle,smooth,isobars,contour_visible,durationmenu,
         overlaybutton,overlay_open,overlaysource,systemstoggle,labelstoggle,valuestoggle,nighttoggle,gridtoggle,
@@ -576,11 +648,22 @@ function advance_playback!(viewer)
     end
 end
 
+function saved_weather(path)
+    meta=saved_manifest(path)
+    root=dirname(saved_manifest_path(path))
+    load_live_history([payload_path(root,name) for name in meta["history"]])
+end
 function launch(path)
     GLMakie.activate!()
-    data = load_weather(path)
-    viewer = build_viewer(data)
-    screen = display(viewer.fig)
+    saved=isdir(path) || endswith(lowercase(path),".toml")
+    data = saved ? saved_weather(path) : load_weather(path)
+    viewer = build_viewer(data;resume_bundle=saved ? path : nothing)
+    screen = try
+        display(viewer.fig)
+    catch
+        try;viewer.session[]===nothing || stop_session!(viewer.session[]);catch;end
+        rethrow()
+    end
     # Data polling/playback keep their original cadence regardless of icon style FPS.
     ticker = @async begin
         tick=0

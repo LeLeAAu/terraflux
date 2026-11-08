@@ -137,10 +137,23 @@ Các nút này điều khiển **phép tính vật lý**. Nút **Phát/Dừng** 
 - Mỗi phiên có giới hạn **10/30/60 ngày** theo lựa chọn khi tạo; giữ cùng lưới/tầng của tệp mở. Tệp do bộ tạo phiên xuất có metadata T để tạo live phù hợp; tệp ngoài thiếu metadata có thể không dùng được dải live.
 - SpeedyWeather chưa tính chẩn đoán nhiệt độ sát bề mặt cần cho **áp suất quy mực biển ở mốc khởi tạo**. Giao diện phiên mới ghi rõ trường này thiếu dữ liệu tại mốc 0, không thay bằng giá trị giả. Các trường trạng thái và mọi đầu ra tại mốc đã tính từ 6 giờ trở đi đều được kiểm tra hữu hạn; phát hiện mất ổn định sẽ dừng và báo lỗi.
 - Phiên lưu ở `sessions/session_…/`: cấu hình `config.toml`, nhật ký lệnh `commands/`, trạng thái `status.toml`, lỗi/tiến trình `worker.log`, và các thư mục `run_…` chứa NetCDF cùng `restart.jld2`. `sessions/` không được đưa vào Git. NetCDF thô của đoạn đầu vẫn chứa chẩn đoán áp suất khởi tạo chưa hợp lệ; dùng các mốc từ 6 giờ để phân tích áp suất.
-- Khi đóng cửa sổ, ứng dụng yêu cầu tiến trình mô phỏng kết thúc; nếu nó còn bận sau 3 giây thì dừng tiến trình đó. Những đoạn đã hoàn tất được giữ lại; đoạn đang tính có thể chưa hoàn chỉnh. Giao diện chỉ nạp các tệp đã đóng và vượt qua kiểm tra. Chưa có chức năng khôi phục phiên từ restart trong giao diện.
+- Khi đóng cửa sổ, ứng dụng yêu cầu tiến trình mô phỏng kết thúc; nếu nó còn bận sau 3 giây thì dừng tiến trình đó. Những đoạn đã hoàn tất được giữ lại; đoạn đang tính có thể chưa hoàn chỉnh. Giao diện chỉ nạp các tệp đã đóng và vượt qua kiểm tra. Muốn tính tiếp lần sau, dùng **Lưu phiên** trước khi kết thúc (hướng dẫn bên dưới).
 - Mô hình được chạy nối tiếp bằng các lời gọi `run!` 6 giờ được thư viện hỗ trợ. Bộ kiểm tra xác nhận đồng hồ liên tục và trạng thái tiến triển; chưa khẳng định kết quả trùng bit với một lời gọi dài 10 ngày.
 
 ![Điều khiển mô phỏng](docs/live.png)
+
+## Lưu phiên để tính tiếp lần sau
+
+Tạm dừng phiên live sau ít nhất **+6 giờ**, rồi bấm **Lưu phiên**. Chờ thông
+báo hoàn tất và giữ cả thư mục chứa `session.toml` mà giao diện cung cấp.
+Lần sau, dán đường dẫn vào ô cạnh nút rồi bấm **Mở phiên đã lưu**; ứng dụng
+khôi phục ở trạng thái tạm dừng, sẵn sàng tính tiếp bằng **+6 giờ/Chạy**.
+
+Bản lưu giữ trạng thái vật lý, RNG, lịch sử, tác động nhiệt đang chờ và hoàn
+tác còn hiệu lực. Mở lại tạo workspace riêng, giữ nguyên bản lưu gốc. Nếu khác
+T/số tầng với cửa sổ đang mở, kéo `session.toml` lên `Open_TerraFlux.bat`.
+Cần cùng phiên bản Julia/SpeedyWeather; lưu trước khi worker kết thúc. Không
+khôi phục trực tiếp từ NetCDF/restart batch. [Chi tiết](docs/SAVED_SESSIONS.md).
 
 ## Địa cầu 3D
 
@@ -180,6 +193,7 @@ Phần bản đồ dùng kinh độ −180…180°, vĩ độ −90…90°, đư
 - `src/globe.jl`: hình học từng ô địa cầu, chuyển tọa độ và chọn mặt cầu bằng tia nhìn.
 - `src/weather_style.jl`, `src/wind_particles.jl`: bảng màu/đơn vị hiển thị và hạt gió.
 - `src/live.jl`, `src/live_worker.jl`: điều khiển tiến trình mô phỏng riêng và công bố các đoạn dữ liệu hoàn tất.
+- `src/saved_sessions.jl`, `src/session_snapshot.jl`: bản lưu độc lập, kiểm tra toàn vẹn và khôi phục live.
 - `src/storms.jl`, `src/tracker.jl`: dữ liệu kịch bản và giao diện Storm Tracker.
 - `viewer.jl`: điểm khởi chạy, nhận đường dẫn dữ liệu.
 - `main.jl`, `check_model.jl`: mô phỏng và kiểm tra trạng thái hiện có.
@@ -188,7 +202,7 @@ Phần bản đồ dùng kinh độ −180…180°, vĩ độ −90…90°, đư
 - `src/map_layers.jl`, `src/hover.jl`, `src/map_math.jl`: lớp phủ, đọc tại chuột và hình học/ngày đêm.
 - `note1.txt`: mục tiêu và lộ trình phát triển.
 
-Can thiệp nhiệt một lần và hoàn tác trong phiên đã có. Chỉnh ẩm/gió, tác động tăng dần/duy trì, khôi phục phiên sau khi đóng app và so sánh A/B còn chờ triển khai.
+Can thiệp nhiệt một lần, hoàn tác và lưu/mở lại phiên đã có. Chỉnh ẩm/gió, tác động tăng dần/duy trì và giao diện so sánh A/B còn chờ triển khai.
 
 ## Kiểm tra
 

@@ -151,8 +151,25 @@ phân loại TC kiểm định, tránh chồng mọi nhãn hoặc tích hợp CU
 
 Phương pháp/cách dùng/giới hạn: [THERMAL_EXPERIMENTS.md](THERMAL_EXPERIMENTS.md).
 Bằng chứng: thermal_patch/thermal_model/intervention_viewer. Chưa phải toàn bộ
-V2: can thiệp ẩm/gió/tạo xoáy, tác động tăng dần/duy trì, khôi phục phiên sau
-khi đóng app và so sánh A/B vẫn còn chờ.
+V2: can thiệp ẩm/gió/tạo xoáy, tác động tăng dần/duy trì và giao diện so sánh
+A/B vẫn còn chờ.
+
+## Lưu/mở lại trạng thái live
+
+- [x] Lưu khi tạm dừng sau ít nhất một đoạn 6 giờ; bản lưu mới chứa checkpoint,
+  đồng hồ/RNG, toàn lịch sử đã đóng, tác động đang chờ và hoàn tác còn hiệu lực.
+- [x] Mở qua đường dẫn thư mục/session.toml trong viewer; launcher nhận bản lưu
+  khác lưới/tầng. Luôn tạo workspace riêng, không ghi đè bản lưu/phiên nguồn.
+- [x] Kiểm tra phiên bản/cấu hình, checksum và thời gian/lưới/trường hữu hạn;
+  giữ nhật ký lệnh/sự kiện qua nhiều lần lưu/mở, không thực thi lại lệnh cũ.
+- [x] Tải lịch sử nhiều đoạn với một lần cấp phát mỗi trường; giữ khung cũ trước
+  tác động, không gọi run! zero-period để xuất dữ liệu.
+
+Cách dùng/giới hạn: [SAVED_SESSIONS.md](SAVED_SESSIONS.md). Kiểm chứng
+saved_manifest/live_history/session_resume/session_viewer/session_launch: chuyển thư mục,
+xóa phiên gốc, khôi phục tác động nhiệt/undo, tính tiếp và so sánh đầu ra
+T21/8 tầng với phiên liên tục. Chưa có lưu camera/lớp phủ, đổi giới hạn ngày,
+nhập restart batch hoặc giao diện đối chiếu hai nhánh A/B.
 
 ## Danh sách cần làm theo tài liệu nguồn
 

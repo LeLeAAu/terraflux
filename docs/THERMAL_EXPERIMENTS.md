@@ -34,8 +34,9 @@ Thao tác ở tệp mẫu/khung cũ bị từ chối. Đổi camera/chế độ 
 
 Hoàn tác một cấp chỉ dùng trước bước tính tiếp theo. Khi đã tính tiếp, checkpoint
 vẫn nằm trên đĩa để đối chiếu nhưng nút không quay ngược một nhánh đã tiến triển.
-Khôi phục phiên sau khi đóng ứng dụng và tạo hai nhánh A/B từ checkpoint là mốc
-tiếp theo, chưa phải chức năng của nút này.
+Dùng **Lưu phiên / Mở phiên đã lưu** để giữ trạng thái này qua lần đóng ứng
+dụng, kể cả quyền hoàn tác còn hiệu lực: [SAVED_SESSIONS.md](SAVED_SESSIONS.md).
+Giao diện so sánh hai nhánh A/B vẫn chưa triển khai.
 
 ## Hình dạng và phép tính
 
@@ -100,4 +101,4 @@ julia --threads=2 --project=. test/intervention_viewer.jl
 ```
 
 Đang chờ: can thiệp hơi nước/gió, tạo xoáy có cấu trúc nhất quán, áp dụng tăng
-dần/duy trì, khôi phục phiên từ đĩa qua GUI và so sánh nhánh đối chứng A/B.
+dần/duy trì và so sánh nhánh đối chứng A/B.

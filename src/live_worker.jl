@@ -8,6 +8,8 @@ using .TerraFluxData
 using .TerraFluxLive.TerraFluxThermalPatch
 include("thermal_model.jl")
 using .TerraFluxThermalModel
+include("session_snapshot.jl")
+using .TerraFluxSessionSnapshot
 using Printf
 
 function worker(directory)
@@ -15,18 +17,26 @@ function worker(directory)
     files = String[]
     completed, sequence = 0, 0
     clock_time="";pending_edit=false;undo_file="";undo_previous_pending=false
-    edit_summary="";command_error=""
+    edit_summary="";command_error="";last_saved=""
     publish(state; error="") = atomic_toml(joinpath(directory,"status.toml"),Dict(
-        "state"=>state,"completed"=>completed,"files"=>files,"sequence"=>sequence,"error"=>error,
+        "state"=>state,"completed"=>completed,"max_chunks"=>config["max_chunks"],"files"=>files,"sequence"=>sequence,"error"=>error,
         "model_time"=>clock_time,"pending_edit"=>pending_edit,"undo_available"=>!isempty(undo_file),
-        "edit_summary"=>edit_summary,"command_error"=>command_error))
+        "edit_summary"=>edit_summary,"command_error"=>command_error,"last_saved"=>last_saved))
     try
         cd(directory)
         publish("starting")
+        haskey(config,"resume_from") && TerraFluxLive.TerraFluxSavedSessions.saved_manifest(config["resume_from"])
         grid = SpectralGrid(truncation=config["truncation"],nlayers=config["layers"])
         model = PrimitiveWetModel(grid)
         add!(model,SurfacePressureOutput())
         simulation = initialize!(model)
+        if haskey(config,"resume_from")
+            restored=restore_session_bundle!(simulation,config["resume_from"],directory)
+            files=restored.files;completed=restored.meta["completed"]
+            pending_edit=restored.meta["pending_edit"];undo_file=restored.undo
+            undo_previous_pending=restored.meta["undo_previous_pending"]
+            edit_summary=restored.meta["edit_summary"]
+        end
         clock_time=string(simulation.variables.prognostic.clock.time)
         # Runs are a new experiment, independent of the file currently being viewed.
         mode = "pause"
@@ -38,7 +48,17 @@ function worker(directory)
                 if command["sequence"] > sequence
                     sequence = command["sequence"]
                     action=command["action"];command_error=""
-                    if action in ("thermal","undo_thermal")
+                    if action=="save"
+                        try
+                            mode=="pause" || error("Tạm dừng mô hình trước khi lưu phiên.")
+                            publish("saving")
+                            last_saved=save_session_bundle(simulation,directory,config,files;
+                                pending_edit,undo_file,undo_previous_pending,edit_summary,sequence)
+                        catch err
+                            command_error=sprint(showerror,err)
+                        end
+                        publish(mode=="pause" ? "paused" : "running")
+                    elseif action in ("thermal","undo_thermal")
                         rollback=""
                         dir=joinpath(directory,"edits",lpad(string(sequence),6,'0'))
                         try
@@ -101,6 +121,9 @@ function worker(directory)
                 end
                 !model.feedback.nans_detected || error("Mô hình phát hiện phép tính mất ổn định.")
                 path = joinpath(model.output.run_path,model.output.filename)
+                SpeedyWeather.NCDataset(path,"a") do ds
+                    ds.attrib["terraflux_truncation"]=config["truncation"]
+                end
                 chunk = load_weather(path)  # NetCDF has been finalized and closed by run!.
                 chunk.times[1] == start && chunk.times[end] == finish || error("Thời gian đầu ra không khớp mô hình.")
                 for (field,data) in chunk.fields

@@ -83,6 +83,8 @@ hữu hạn sau khởi tạo, đồng hồ/số khung chính xác và trạng th
 Dải live trong viewer vẫn chọn 10/30/60 ngày, mỗi bước 6 giờ, tạo phiên mới
 từ điều kiện mặc định. Khi mở kết quả form có metadata, live kế thừa T/số tầng
 để giữ cùng lưới; **không tiếp tục trạng thái cuối của thí nghiệm batch**.
+Phiên live có chức năng **Lưu phiên / Mở phiên đã lưu** riêng để tính tiếp
+sau khi đóng viewer; xem [SAVED_SESSIONS.md](SAVED_SESSIONS.md).
 
 Đã chạy thật và kiểm chứng trên cloud: T63/16 tầng/1 ngày/6 giờ (5 khung),
 và T21/8 tầng/1 ngày/24 giờ (2 khung) từ chính form. Kiểm tra live cũng đã

@@ -2,7 +2,9 @@ module TerraFluxLive
 using TOML
 include("thermal_patch.jl")
 using .TerraFluxThermalPatch
-export LiveSession, start_session, send_command!, read_status, stop_session!, atomic_toml
+include("saved_sessions.jl")
+using .TerraFluxSavedSessions
+export LiveSession, start_session, resume_session, send_command!, read_status, stop_session!, atomic_toml
 
 mutable struct LiveSession
     directory::String
@@ -19,15 +21,26 @@ function atomic_toml(path, data)
 end
 
 function start_session(; root=joinpath(@__DIR__,"..","sessions"), max_chunks=40,truncation=32,layers=8)
-    max_chunks > 0 || throw(ArgumentError("Số bước phải lớn hơn 0."))
+    max_chunks isa Integer && 1<=max_chunks<=1460 || throw(ArgumentError("Số bước phải là số nguyên 1–1460."))
     truncation in (21,32,63,85) && layers in (8,16,24,32) || throw(ArgumentError("Cấu hình lưới/tầng không hỗ trợ."))
+    config=Dict("truncation"=>truncation,"layers"=>layers,"chunk_hours"=>6,"max_chunks"=>max_chunks,
+        "model"=>"PrimitiveWetModel","initial_mslp"=>"unavailable_before_surface_diagnostics",
+        "julia_version"=>string(VERSION),"created_at"=>string(time()))
+    spawn_session(config,root)
+end
+function resume_session(path;root=joinpath(@__DIR__,"..","sessions"))
+    meta=saved_manifest(path;verify=false) # Worker verifies all hashes before deserializing state.
+    config=Dict{String,Any}(meta["config"])
+    config["resume_from"]=saved_manifest_path(path)
+    config["model"]="PrimitiveWetModel"
+    config["julia_version"]=string(VERSION)
+    spawn_session(config,root)
+end
+function spawn_session(config,root)
     mkpath(root)
     directory = mktempdir(abspath(root);prefix="session_",cleanup=false)
     mkpath(joinpath(directory,"commands"))
-    atomic_toml(joinpath(directory,"config.toml"),Dict("truncation"=>truncation,"layers"=>layers,
-        "chunk_hours"=>6,"max_chunks"=>max_chunks,"model"=>"PrimitiveWetModel",
-        "initial_mslp"=>"unavailable_before_surface_diagnostics",
-        "julia_version"=>string(VERSION),"created_at"=>string(time())))
+    atomic_toml(joinpath(directory,"config.toml"),config)
     atomic_toml(joinpath(directory,"status.toml"),Dict("state"=>"starting","completed"=>0,"files"=>String[]))
     project = abspath(joinpath(@__DIR__,".."))
     worker = joinpath(@__DIR__,"live_worker.jl")
@@ -39,11 +52,11 @@ function start_session(; root=joinpath(@__DIR__,"..","sessions"), max_chunks=40,
 end
 
 function send_command!(session::LiveSession, action::String;patch=nothing)
-    action in ("run","pause","step","stop","thermal","undo_thermal") || throw(ArgumentError("Lệnh không hỗ trợ: $action"))
+    action in ("run","pause","step","stop","thermal","undo_thermal","save") || throw(ArgumentError("Lệnh không hỗ trợ: $action"))
     process_running(session.process) || error("Tiến trình mô phỏng đã kết thúc. Xem $(joinpath(session.directory,"worker.log"))")
-    if action in ("thermal","undo_thermal")
+    if action in ("thermal","undo_thermal","save")
         status=read_status(session)
-        status["state"]=="paused" && get(status,"sequence",0)==session.sequence || error("Can thiệp chỉ dùng khi đã tạm dừng và xử lý xong lệnh trước.")
+        status["state"]=="paused" && get(status,"sequence",0)==session.sequence || error("Lưu/can thiệp chỉ dùng khi đã tạm dừng và xử lý xong lệnh trước.")
     end
     spec=action=="thermal" ? thermal_spec(;patch...) : nothing
     session.sequence += 1

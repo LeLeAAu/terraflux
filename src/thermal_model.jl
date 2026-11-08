@@ -18,7 +18,13 @@ function save_checkpoint(sim,path)
     end
 end
 function restore_checkpoint!(sim,path)
-    saved=SpeedyWeather.jldopen(path,"r") do f;(variables=f["variables"],rng=f["rng"]);end
+    saved=SpeedyWeather.jldopen(path,"r") do f
+        f["julia"]==string(VERSION) && f["speedyweather"]==string(pkgversion(SpeedyWeather)) || error("Phiên bản checkpoint không tương thích.")
+        (variables=f["variables"],rng=f["rng"])
+    end
+    for name in (:temperature,:humidity,:vorticity,:divergence,:pressure)
+        size(getproperty(saved.variables.prognostic,name))==size(getproperty(sim.variables.prognostic,name)) || error("Lưới/tầng checkpoint không khớp mô hình.")
+    end
     copy!(sim.variables,saved.variables)
     copy!(Random.default_rng(),saved.rng)
     nothing

@@ -2,7 +2,7 @@ module TerraFluxData
 using SpeedyWeather: NCDataset, NCDatasets
 using Dates
 export WeatherData, load_weather, frame, color_limits, nearest_cell, sample_value,
-       FIELDS, field_label, field_unit, layer_label, append_weather, load_live_chunk
+       FIELDS, field_label, field_unit, layer_label, append_weather, load_live_chunk, load_live_history
 
 const FIELDS = [:temp, :wind, :u, :v, :humid, :mslp, :rh]
 const LABELS = Dict(:temp => "Nhiệt độ", :wind => "Tốc độ gió", :u => "Gió Đông–Tây (u)",
@@ -146,6 +146,31 @@ function load_live_chunk(path; initial=false)
     initial && (d.fields[:mslp][:,:,1] .= NaN32)
     initial && haskey(d.fields,:pres) && (d.fields[:pres][:,:,1].=NaN32)
     d
+end
+
+"Load archived two-frame chunks with one allocation per field, preserving initial missing data."
+function load_live_history(paths)
+    isempty(paths) && error("Phiên chưa có lịch sử đầu ra.")
+    first=load_live_chunk(paths[1];initial=true)
+    length(first.times)==2 && first.times[2]-first.times[1]==Hour(6) || error("Đoạn đầu không có đúng hai mốc 6 giờ.")
+    times=Vector{DateTime}(undef,length(paths)+1);times[1:2]=first.times
+    fields=Dict{Symbol,Array{Float32}}()
+    for (f,a) in first.fields
+        dims=Base.setindex(size(a),length(times),ndims(a))
+        fields[f]=similar(a,dims)
+        selectdim(fields[f],ndims(a),1).=selectdim(a,ndims(a),1)
+        selectdim(fields[f],ndims(a),2).=selectdim(a,ndims(a),2)
+    end
+    for i in 2:length(paths)
+        chunk=load_live_chunk(paths[i])
+        chunk.lon==first.lon && chunk.lat==first.lat && chunk.layers==first.layers && Set(keys(chunk.fields))==Set(keys(fields)) || error("Lưới/trường trong lịch sử không khớp.")
+        length(chunk.times)==2 && chunk.times[1]==times[i] && chunk.times[2]-chunk.times[1]==Hour(6) || error("Lịch sử phiên không liên tục theo bước 6 giờ.")
+        times[i+1]=chunk.times[2]
+        for (f,a) in chunk.fields
+            selectdim(fields[f],ndims(a),i+1).=selectdim(a,ndims(a),2)
+        end
+    end
+    WeatherData(abspath(last(paths)),first.lon,first.lat,first.layers,times,fields)
 end
 
 end

@@ -105,3 +105,14 @@ stdout/stderr redirection. launch_setup must write the inherited stderr stream,
 never reopen the same file (Windows can deny the second writer). Logging failure
 must not abort GUI startup or mask the original exception. Direct Julia runs log
 to the terminal. Focused checks are setup_logging.jl and setup_launch.jl.
+
+
+Live persistence uses `src/saved_sessions.jl` and `src/session_snapshot.jl`;
+read `docs/SAVED_SESSIONS.md`. Save only a paused acknowledged endpoint with
+at least one completed 6h chunk. Bundle state/RNG, relative closed history,
+pending edit/one-level undo and inherited command/event journals. Restore into
+a fresh workspace using matching Julia/SpeedyWeather/default CPU model; verify
+hashes before deserializing. Journals are provenance, never replayed commands.
+Check history against the full output grid, not native reduced nlon_max. Preserve
+immutable pre-edit frames and RNG across filesystem operations. Batch NetCDF or
+restart is not a saved live session. Do not claim arbitrary backend/model resume.
