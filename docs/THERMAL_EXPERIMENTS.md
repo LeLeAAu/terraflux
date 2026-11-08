@@ -101,5 +101,6 @@ julia --threads=2 --project=. test/thermal_model.jl
 julia --threads=2 --project=. test/intervention_viewer.jl
 ```
 
-Đang chờ: can thiệp hơi nước/gió, tạo xoáy có cấu trúc nhất quán, áp dụng tăng
-dần/duy trì, so sánh thêm các loại tác động và biểu đồ vùng A/B.
+Mẫu xoáy áp thấp/gió/lõi ấm đã được bổ sung riêng trong
+[IDEALIZED_VORTEX.md](IDEALIZED_VORTEX.md). Can thiệp hơi nước/gió tự do, áp
+dụng tăng dần/duy trì và biểu đồ vùng A/B vẫn còn chờ.

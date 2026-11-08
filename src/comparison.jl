@@ -3,6 +3,7 @@ using TOML,Dates
 using ..TerraFluxLive
 using ..TerraFluxLive.TerraFluxSavedSessions
 using ..TerraFluxLive.TerraFluxThermalPatch
+using ..TerraFluxLive.TerraFluxVortexProfiles
 using ..TerraFluxData
 export ComparisonJob,start_comparison,comparison_status,stop_comparison!,load_comparison,
     comparison_values,comparison_path,comparison_manifest
@@ -30,6 +31,7 @@ function comparison_manifest(path)
         end
     end
     get(m,"format","")=="terraflux.comparison" && get(m,"format_version",0)==1 || error("Định dạng kết quả A/B không hỗ trợ.")
+    get(m,"intervention","thermal") in ("thermal","vortex") || error("Loại tác động trong kết quả A/B không hỗ trợ.")
     m["steps"] isa Integer && 1<=m["steps"]<=40 || error("Giới hạn A/B không hợp lệ.")
     DateTime(m["fork_time"])
     for side in ("a","b")
@@ -45,18 +47,19 @@ function comparison_manifest(path)
     m["state"]=="complete" && !(length(m["outputs_a"])==length(m["outputs_b"])==m["steps"]) && error("Kết quả A/B chưa đủ mốc để hoàn tất.")
     m
 end
-function start_comparison(path;patch=nothing,treatment=true,steps=4,root=joinpath(@__DIR__,"..","sessions","comparisons"))
+function start_comparison(path;patch=nothing,treatment=true,intervention="thermal",steps=4,root=joinpath(@__DIR__,"..","sessions","comparisons"))
     steps isa Integer && !(steps isa Bool) && 1<=steps<=40 || error("Chọn 1–40 bước, mỗi bước 6 giờ.")
     treatment isa Bool || error("Lựa chọn can thiệp không hợp lệ.")
     source=saved_manifest_path(path);meta=saved_manifest(source;verify=false)
     !meta["pending_edit"] || error("Bản lưu còn tác động chờ mốc mới. Tính thêm +6 giờ rồi lưu để có mốc đối chứng rõ ràng.")
     meta["completed"]+steps<=meta["config"]["max_chunks"] || error("Số bước vượt thời lượng còn lại của bản lưu.")
-    spec=treatment ? thermal_spec(;patch...) : nothing
-    spec===nothing || spec.layer<=meta["config"]["layers"] || error("Tầng can thiệp không có trong bản lưu.")
+    intervention in ("thermal","vortex") || error("Loại tác động A/B không hỗ trợ.")
+    spec=treatment ? (intervention=="thermal" ? thermal_spec(;patch...) : vortex_spec(;patch...)) : nothing
+    spec===nothing || intervention=="vortex" || spec.layer<=meta["config"]["layers"] || error("Tầng can thiệp không có trong bản lưu.")
     mkpath(root);directory=mktempdir(abspath(root);prefix="ab_",cleanup=false)
     # Hashing/copying long histories belongs in the worker, keeping the form responsive.
     config=Dict{String,Any}("format"=>"terraflux.comparison","format_version"=>1,
-        "steps"=>steps,"treatment"=>treatment,"fork_time"=>meta["model_time"],
+        "steps"=>steps,"treatment"=>treatment,"intervention"=>intervention,"fork_time"=>meta["model_time"],
         "truncation"=>meta["config"]["truncation"],"layers"=>meta["config"]["layers"],
         "source_manifest"=>source,"state_sha256"=>only(e["sha256"] for e in meta["payloads"] if e["path"]=="state.jld2"),
         "julia_version"=>string(VERSION),"speedyweather_version"=>speedy_version(),

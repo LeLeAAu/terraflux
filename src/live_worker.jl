@@ -8,6 +8,9 @@ using .TerraFluxData
 using .TerraFluxLive.TerraFluxThermalPatch
 include("thermal_model.jl")
 using .TerraFluxThermalModel
+using .TerraFluxLive.TerraFluxVortexProfiles
+include("vortex_model.jl")
+using .TerraFluxVortexModel
 include("session_snapshot.jl")
 using .TerraFluxSessionSnapshot
 include("model_chunk.jl")
@@ -60,25 +63,27 @@ function worker(directory)
                             command_error=sprint(showerror,err)
                         end
                         publish(mode=="pause" ? "paused" : "running")
-                    elseif action in ("thermal","undo_thermal")
+                    elseif action in ("thermal","vortex","undo_thermal","undo_edit")
                         rollback=""
                         dir=joinpath(directory,"edits",lpad(string(sequence),6,'0'))
                         try
                             mode=="pause" || error("Phải tạm dừng mô hình trước khi can thiệp.")
                             mkpath(dir)
-                            if action=="thermal"
-                                spec=thermal_spec(;(Symbol(k)=>v for (k,v) in command["patch"])...)
+                            if action in ("thermal","vortex")
+                                parser=action=="thermal" ? thermal_spec : vortex_spec
+                                spec=parser(;(Symbol(k)=>v for (k,v) in command["patch"])...)
                                 rollback=joinpath(dir,"before.jld2")
                                 save_checkpoint(simulation,rollback)
-                                report=apply_thermal!(simulation,spec)
+                                report=action=="thermal" ? apply_thermal!(simulation,spec) : apply_vortex!(simulation,spec)
                                 save_checkpoint(simulation,joinpath(dir,"after.jld2"))
                                 record=Dict{String,Any}("action"=>action,"model_time"=>clock_time,
                                     "status"=>"applied",
                                     "sequence"=>sequence,"checkpoint"=>rollback,"patch"=>command["patch"],
-                                    "effect"=>Dict(string(k)=>v for (k,v) in pairs(report)),"application"=>"instantaneous, one sigma layer")
+                                    "effect"=>Dict(string(k)=>v for (k,v) in pairs(report)),"application"=>action=="thermal" ? "instantaneous, one sigma layer" : "instantaneous idealized vortex, full atmospheric column")
                                 atomic_toml(joinpath(dir,"event.toml"),record)
                                 undo_file=rollback;undo_previous_pending=pending_edit;pending_edit=true
-                                edit_summary=@sprintf("ΔT chiếu: %+.3f…%+.3f K · Q khô ≈ %.3e J",report.projected_min_k,report.projected_max_k,report.heat_dry_approx_j)
+                                edit_summary=action=="thermal" ? @sprintf("ΔT chiếu: %+.3f…%+.3f K · Q khô ≈ %.3e J",report.projected_min_k,report.projected_max_k,report.heat_dry_approx_j) :
+                                    @sprintf("Xoáy · lúc chèn: Δps %.2f…%.2f hPa · ΔT %.2f…%.2f K",report.projected_pressure_min_hpa,report.projected_pressure_max_hpa,report.projected_delta_t_min_k,report.projected_delta_t_max_k)
                             else
                                 isempty(undo_file) && error("Không có tác động để hoàn tác trước bước tính tiếp theo.")
                                 # Keep a rollback for the undo operation itself.

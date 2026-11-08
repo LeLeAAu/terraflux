@@ -3,12 +3,13 @@
 Hai nhánh xuất phát từ **cùng checkpoint, cấu hình, đồng hồ và RNG**:
 
 - **A** giữ trạng thái xuất phát và không nhận tác động mới.
-- **B** nhận một tác động nhiệt theo cấu hình, hoặc không nhận tác động mới
+- **B** nhận một tác động nhiệt hoặc xoáy lý tưởng theo cấu hình, hoặc không nhận tác động mới
   nếu bỏ chọn checkbox để kiểm tra cặp đối chứng.
 - **Δ = B − A** so sánh cùng trường, tầng, ô và thời gian vật lý.
 
-Đây là mốc đầu của V3; can thiệp hiện vẫn là một lần lên một tầng khí quyển
-như [THERMAL_EXPERIMENTS.md](THERMAL_EXPERIMENTS.md).
+Đây là mốc đầu của V3. Hai loại tác động một lần hiện có là nhiệt trên một
+tầng khí quyển ([THERMAL_EXPERIMENTS.md](THERMAL_EXPERIMENTS.md)) và xoáy áp
+thấp/gió/lõi ấm toàn cột ([IDEALIZED_VORTEX.md](IDEALIZED_VORTEX.md)).
 
 ![A/B và chênh lệch sau một tác động nhiệt](ab_experiment.png)
 
@@ -21,7 +22,7 @@ như [THERMAL_EXPERIMENTS.md](THERMAL_EXPERIMENTS.md).
    Có thể kéo `session.toml` lên file `.bat` để điền sẵn đường dẫn.
 3. Dán đường dẫn `session.toml` hoặc thư mục bản lưu. Chọn **1–40 bước × 6 giờ**,
    trong giới hạn thời lượng còn lại của bản lưu. Mặc định 4 bước = 1 ngày.
-4. Chọn **B có can thiệp nhiệt**, nhập kinh/vĩ độ, R, tầng và ΔT. R 1000–5000 km;
+4. Bật checkbox tác động, chọn **B: nhiệt một tầng**, nhập kinh/vĩ độ, R, tầng và ΔT. R 1000–5000 km;
    ΔT khác 0 trong −5…+5 K; tầng phải có trong bản lưu. Hoặc bỏ chọn để cho cả
    hai nhánh tiến triển mà không chèn tác động mới.
 5. Bấm **Tạo và chạy A/B**. Worker kiểm tra/sao chép bản lưu rồi tính **A trước,

@@ -19,11 +19,13 @@ function click(widget)
     events(v.fig).mousebutton[]=Makie.MouseButtonEvent(Mouse.left,Mouse.release)
 end
 try
-    @testset "Native A/B form, real heating and linked comparison maps" begin
+    @testset "Native A/B form, real intervention and linked comparison maps" begin
         v.steps.displayed_string[]="0";click(v.create)
         @test v.job[]===nothing && occursin("1–40",v.status[])
         v.source.displayed_string[]="\"$(joinpath(source,"session.toml"))\""
         v.steps.displayed_string[]="1"
+        vortex=length(ARGS)>3 && ARGS[4]=="vortex"
+        vortex && (v.kind.i_selected[]=2)
         v.inputs[:radius_km].displayed_string[]="3000"
         click(v.create)
         @test v.job[]!==nothing && v.result[]===nothing
@@ -35,7 +37,12 @@ try
         wait(v.job[].process);@test v.job[].process.exitcode==0
         r=v.result[]
         @test length(r.times)==1 && r.meta["treatment"]
-        @test r.meta["effect"]["heat_dry_approx_j"]>0
+        if vortex
+            @test r.meta["intervention"]=="vortex"
+            @test r.meta["effect"]["projected_pressure_min_hpa"]< -5
+        else
+            @test r.meta["effect"]["heat_dry_approx_j"]>0
+        end
         @test r.times[1]==DateTime(r.meta["fork_time"])+Hour(6)
         @test maximum(abs,v.displayed[].delta)>0.01
         @test v.displayed[].delta≈v.displayed[].b.-v.displayed[].a
@@ -69,7 +76,7 @@ try
         stop_comparison!(previous)
         @test comparison_status(previous)["state"]=="complete"
         length(ARGS)>1 && save(ARGS[2],v.fig)
-        println("A/B heated result: $(joinpath(previous.directory,"comparison.toml"))");flush(stdout)
+        println("A/B result: $(joinpath(previous.directory,"comparison.toml"))");flush(stdout)
     end
     println("COMPARISON_VIEWER_PASSED")
 finally

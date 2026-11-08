@@ -135,3 +135,17 @@ A/B child sessions use internal keep_open_at_limit solely to save the final
 endpoint before stopping; they must never integrate beyond the frozen budget.
 The default live completion/exit behavior stays unchanged. Closing/cancelling
 the coordinator must stop and reap its child even if job metadata is broken.
+
+
+Idealized vortex initialization is in `vortex_profiles.jl`, `vortex_model.jl`,
+and `vortex_panel.jl`; read `docs/IDEALIZED_VORTEX.md` before changing it. It is
+an approximate coupled perturbation based on an isothermal-virtual-temperature,
+flat-surface f-plane reference, not a balanced solution of the full moist
+background or a confirmed TC. Keep reference and projected measurements separate.
+Use zero buffers for wind-to-vorticity conversion then add the increment: upstream
+curl(add=true,radius!=1) divides the existing background by radius as well.
+Preserve background divergence and humidity, both leapfrog buffers, immutable
+pre-edit frames, one-level undo and RNG checkpoints. Native size and measured
+wind projection fit are rejection gates, not values to relax to make a case pass.
+A/B metadata has optional intervention="thermal"/"vortex"; absent means thermal.
+No new TC/SSHWS classification is implied by inserting the template.

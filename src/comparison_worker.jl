@@ -51,7 +51,7 @@ function worker(directory)
             if side=="b" && m["treatment"]
                 m["phase"]="applying_b";publish()
                 patch=(;(Symbol(k)=>v for (k,v) in m["patch"])...)
-                send_command!(child,"thermal";patch)
+                send_command!(child,get(m,"intervention","thermal");patch)
                 status=await_child(child,ack(child))
                 isempty(status["command_error"]) || error(status["command_error"])
                 event=TOML.parsefile(joinpath(child.directory,"edits",lpad(string(child.sequence),6,'0'),"event.toml"))

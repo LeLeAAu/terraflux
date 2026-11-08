@@ -151,7 +151,8 @@ phân loại TC kiểm định, tránh chồng mọi nhãn hoặc tích hợp CU
 
 Phương pháp/cách dùng/giới hạn: [THERMAL_EXPERIMENTS.md](THERMAL_EXPERIMENTS.md).
 Bằng chứng: thermal_patch/thermal_model/intervention_viewer. Chưa phải toàn bộ
-V2: can thiệp ẩm/gió/tạo xoáy và tác động tăng dần/duy trì vẫn còn chờ.
+V2: can thiệp ẩm/gió tự do và tác động tăng dần/duy trì vẫn còn chờ.
+Mẫu xoáy lý tưởng đầu tiên được ghi ở mốc bên dưới.
 Thí nghiệm A/B từ bản lưu đã có ở mốc bên dưới.
 
 ## Lưu/mở lại trạng thái live
@@ -190,6 +191,24 @@ comparison_values/comparison_model/comparison_cancel/comparison_viewer/
 comparison_reopen và
 hồi quy live/viewer. Chưa có pause/resume job A/B đang chạy, tác động ẩm/gió,
 biểu đồ điểm/vùng hoặc đối chiếu Storm Tracker. Không coi đây là toàn bộ V3.
+
+## Mẫu khởi tạo xoáy áp thấp lõi ấm
+
+- [x] Bảng riêng trong viewer 2D/3D: tâm, R, trũng áp tham chiếu và độ giảm
+  theo cao; preview phạm vi/thông số, đóng menu và cô lập input theo chế độ.
+- [x] Gió tiếp tuyến cầu, ps và δTv liên hệ qua mẫu tham chiếu thủy tĩnh/
+  gradient gió; đổi δTv thành δT theo q, giữ q và phân kỳ nền.
+- [x] Nhiễu xoáy tính trong bộ đệm riêng rồi cộng vào hai bước leapfrog;
+  không làm phép cộng curl của thư viện chia lại trường nền theo bán kính.
+- [x] Kiểm tra kích thước native, tái dựng gió/sai số chiếu phổ, giới hạn trạng
+  thái; checkpoint/rollback/hoàn tác và lưu phiên dùng cùng luồng live.
+- [x] Nhật ký cực trị thực, khối lượng khí/hơi nước và enthalpy khô; A/B chọn
+  B nhận xoáy thay nhiệt, metadata cũ vẫn mặc định là nhiệt một tầng.
+
+Phương pháp: [IDEALIZED_VORTEX.md](IDEALIZED_VORTEX.md). Kiểm chứng bằng
+vortex_profiles/vortex_model/vortex_viewer và A/B. Đây là nhiễu động lý tưởng
+hóa, không phải mẫu bão nhiệt đới đã kiểm định hoặc nghiệm cân bằng của toàn
+khí quyển nền. Chưa thêm ẩm/SST/đối lưu mới, duy trì xoáy, xác nhận TC hay SSHWS.
 
 ## Danh sách cần làm theo tài liệu nguồn
 

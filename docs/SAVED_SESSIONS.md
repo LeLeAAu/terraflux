@@ -1,7 +1,8 @@
 # Lưu và mở lại phiên mô phỏng live
 
 **Lưu phiên** giữ trạng thái vật lý để đóng ứng dụng rồi tính tiếp vào lần sau.
-Nó dùng cho phiên live trong viewer, bao gồm phiên có can thiệp nhiệt.
+Nó dùng cho phiên live trong viewer, bao gồm phiên có can thiệp nhiệt hoặc
+xoáy lý tưởng hóa.
 
 ![Các nút lưu và mở phiên](saved_session.png)
 
@@ -41,7 +42,7 @@ giữa lúc lưu có thể để lại thư mục `.saving_…` chưa hoàn ch�
   mô hình mặc định `PrimitiveWetModel` trên CPU được dựng lại cùng T/số tầng.
 - Toàn bộ các đoạn NetCDF 6 giờ đã hoàn tất, theo đúng thứ tự. Lịch sử chỉ
   nạp một lần vào RAM khi mở, không nối lại toàn bộ chuỗi ở mỗi đoạn nhập.
-- Tác động nhiệt đang chờ mốc mới và checkpoint hoàn tác gần nhất nếu còn
+- Tác động nhiệt/xoáy đang chờ mốc mới và checkpoint hoàn tác gần nhất nếu còn
   hiệu lực. Các khung đã ghi vẫn là trước tác động; cần tính tiếp để xem phản ứng.
 - Nhật ký lệnh và sự kiện nhiệt tới thời điểm lưu, kể cả nhật ký kế thừa từ
   những lần mở trước. Nhật ký được giữ làm hồ sơ, **không chạy lại lệnh cũ**.

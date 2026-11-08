@@ -2,6 +2,8 @@ module TerraFluxLive
 using TOML
 include("thermal_patch.jl")
 using .TerraFluxThermalPatch
+include("vortex_profiles.jl")
+using .TerraFluxVortexProfiles
 include("saved_sessions.jl")
 using .TerraFluxSavedSessions
 export LiveSession, start_session, resume_session, send_command!, read_status, stop_session!, atomic_toml
@@ -53,13 +55,13 @@ function spawn_session(config,root)
 end
 
 function send_command!(session::LiveSession, action::String;patch=nothing)
-    action in ("run","pause","step","stop","thermal","undo_thermal","save") || throw(ArgumentError("Lệnh không hỗ trợ: $action"))
+    action in ("run","pause","step","stop","thermal","vortex","undo_thermal","undo_edit","save") || throw(ArgumentError("Lệnh không hỗ trợ: $action"))
     process_running(session.process) || error("Tiến trình mô phỏng đã kết thúc. Xem $(joinpath(session.directory,"worker.log"))")
-    if action in ("thermal","undo_thermal","save")
+    if action in ("thermal","vortex","undo_thermal","undo_edit","save")
         status=read_status(session)
         status["state"]=="paused" && get(status,"sequence",0)==session.sequence || error("Lưu/can thiệp chỉ dùng khi đã tạm dừng và xử lý xong lệnh trước.")
     end
-    spec=action=="thermal" ? thermal_spec(;patch...) : nothing
+    spec=action=="thermal" ? thermal_spec(;patch...) : action=="vortex" ? vortex_spec(;patch...) : nothing
     session.sequence += 1
     command = Dict{String,Any}("sequence"=>session.sequence,"action"=>action)
     spec===nothing || (command["patch"]=Dict(string(k)=>v for (k,v) in pairs(spec)))

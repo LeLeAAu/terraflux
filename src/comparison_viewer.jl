@@ -12,10 +12,10 @@ function input_path(path)
 end
 function build_comparison_viewer(;path="",root=joinpath(@__DIR__,"..","sessions","comparisons"))
     set_theme!(theme_dark();fontsize=14,backgroundcolor=BG,textcolor=INK)
-    fig=Figure(size=(1560,940),figure_padding=22)
+    fig=Figure(size=(1560,1000),figure_padding=22)
     header=GridLayout(fig[1,1:3])
     Label(header[1,1],"TERRAFLUX · THÍ NGHIỆM A/B",fontsize=26,font=:bold,color="#66ded0",halign=:left,tellwidth=false)
-    Label(header[2,1],"Cùng trạng thái xuất phát · A đối chứng · B có/không tác động nhiệt · Δ = B − A",halign=:left,fontsize=13)
+    Label(header[2,1],"Cùng trạng thái xuất phát · A đối chứng · B có/không tác động mới · Δ = B − A",halign=:left,fontsize=13)
     form=GridLayout(fig[2,1:3])
     Label(form[1,1],"Bản lưu / kết quả",halign=:left)
     source=Textbox(form[1,2:7],stored_string=path,placeholder="Đường dẫn session.toml hoặc comparison.toml",reset_on_defocus=false,tellwidth=false)
@@ -23,15 +23,26 @@ function build_comparison_viewer(;path="",root=joinpath(@__DIR__,"..","sessions"
     Label(form[2,1],"Số bước × 6 giờ",halign=:left)
     steps=Textbox(form[2,2],stored_string="4",width=80,reset_on_defocus=false)
     treatment=Checkbox(form[2,3],checked=true)
-    Label(form[2,4],"B có can thiệp nhiệt",halign=:left)
+    kind=Menu(form[2,4],options=[("B: nhiệt một tầng","thermal"),("B: xoáy lý tưởng","vortex")],default=1,width=210)
     create=Button(form[2,5:7],label="Tạo và chạy A/B",buttoncolor=PANEL,labelcolor=INK)
     stop=Button(form[2,8],label="Dừng",buttoncolor=PANEL,labelcolor=INK)
     controls=GridLayout(form[3,1:8])
     inputs=Dict{Symbol,Any}()
     for (i,(key,label,value)) in enumerate(((:lon,"Kinh độ","130"),(:lat,"Vĩ độ","20"),
-            (:radius_km,"R (1000–5000 km)","2500"),(:layer,"Tầng tác động","8"),(:delta_k,"ΔT (−5…+5 K)","2")))
+            (:radius_km,"R ngoài (km)","2500"),(:layer,"Tầng tác động","8"),(:delta_k,"ΔT (−5…+5 K)","2")))
         Label(controls[1,2i-1],label,fontsize=12)
         inputs[key]=Textbox(controls[1,2i],stored_string=value,width=85,reset_on_defocus=false)
+    end
+    extra=GridLayout(form[4,1:8])
+    Label(extra[1,1],"Xoáy: trũng áp ref (hPa)",fontsize=12)
+    inputs[:pressure_drop_hpa]=Textbox(extra[1,2],stored_string="15",width=80,reset_on_defocus=false)
+    Label(extra[1,3],"Giảm theo cao k",fontsize=12)
+    inputs[:depth]=Textbox(extra[1,4],stored_string="0.75",width=80,reset_on_defocus=false)
+    Label(extra[1,5],"Nhiệt: R 1000–5000, tầng, ΔT · Xoáy: R 800–3000, trũng áp, k.",fontsize=11)
+    on(kind.selection) do choice
+        if choice=="vortex"
+            Makie.set!(inputs[:lat],"35");Makie.set!(inputs[:radius_km],"3000")
+        end
     end
     status=Observable("Lưu phiên live đã tạm dừng sau ít nhất +6 giờ, rồi dán đường dẫn ở trên. Chọn 1–40 bước; physics dùng CPU.")
     Label(fig[3,1:3],status,halign=:left,fontsize=12,tellwidth=false,word_wrap=true,color=MUTED)
@@ -91,7 +102,7 @@ function build_comparison_viewer(;path="",root=joinpath(@__DIR__,"..","sessions"
                 nan_color=:transparent,interpolate=true)
             lines!(ax,GeoMakie.coastlines();color=(:black,0.8),linewidth=0.6,xautolimits=false,yautolimits=false)
         end
-        axes[2].title[]=r.meta["treatment"] ? "B · can thiệp nhiệt" : "B · không tác động mới"
+        axes[2].title[]=!r.meta["treatment"] ? "B · không tác động mới" : get(r.meta,"intervention","thermal")=="vortex" ? "B · xoáy lý tưởng" : "B · can thiệp nhiệt"
         clock[]="$(r.times[t]) · Mốc chung $t / $(length(r.times)) · $(layer_label(r.a,k)) · $(field_label(f))"
         if selected[]!==nothing
             i,j=selected[]
@@ -124,6 +135,7 @@ function build_comparison_viewer(;path="",root=joinpath(@__DIR__,"..","sessions"
     function show_config!(r)
         Makie.set!(steps,string(r.meta["steps"]))
         treatment.checked[]=r.meta["treatment"]
+        kind.i_selected[]=get(r.meta,"intervention","thermal")=="vortex" ? 2 : 1
         for (key,w) in inputs
             spec=get(r.meta,"patch",Dict())
             haskey(spec,string(key)) && Makie.set!(w,string(spec[string(key)]))
@@ -143,8 +155,9 @@ function build_comparison_viewer(;path="",root=joinpath(@__DIR__,"..","sessions"
     on(create.clicks) do _
         try
             job[]!==nothing && process_running(job[].process) && error("Đợi hoặc dừng thí nghiệm đang chạy trước.")
-            patch=treatment.checked[] ? (;(key=>parse(key==:layer ? Int : Float64,w.displayed_string[]) for (key,w) in inputs)...) : nothing
-            job[]=start_comparison(input_path(source.displayed_string[]);patch,treatment=treatment.checked[],steps=parse(Int,steps.displayed_string[]),root)
+            keys=kind.selection[]=="vortex" ? (:lon,:lat,:radius_km,:pressure_drop_hpa,:depth) : (:lon,:lat,:radius_km,:layer,:delta_k)
+            patch=treatment.checked[] ? (;(key=>parse(key==:layer ? Int : Float64,inputs[key].displayed_string[]) for key in keys)...) : nothing
+            job[]=start_comparison(input_path(source.displayed_string[]);patch,treatment=treatment.checked[],intervention=kind.selection[],steps=parse(Int,steps.displayed_string[]),root)
             result[]=nothing;resultpath[]="";imported[]=0;selected[]=nothing;displayed[]=nothing
             for ax in axes;empty!(ax);end
             clock[]="Chờ mốc mới chung sau khi A và B tính xong."
@@ -175,7 +188,7 @@ function build_comparison_viewer(;path="",root=joinpath(@__DIR__,"..","sessions"
         job[]===nothing && return
         m=comparison_status(job[]);na=length(m["outputs_a"]);nb=length(m["outputs_b"])
         phase=get(Dict("loading"=>"Nạp thư viện/biên dịch","copying_baseline"=>"Kiểm tra và sao chép bản lưu","initializing_a"=>"Khởi tạo A","initializing_b"=>"Khởi tạo B",
-            "applying_b"=>"Can thiệp nhiệt lên B","integrating_a"=>"Tính A","integrating_b"=>"Tính B",
+            "applying_b"=>"Chèn tác động lên B","integrating_a"=>"Tính A","integrating_b"=>"Tính B",
             "saving_a"=>"Lưu trạng thái A","saving_b"=>"Lưu trạng thái B","complete"=>"Hoàn tất","stopped"=>"Đã dừng","error"=>"Lỗi"),m["phase"],m["phase"])
         message="$phase · A $na / $(m["steps"]) · B $nb / $(m["steps"]) bước × 6 giờ · Xuất phát $(m["fork_time"])"*
             (m["state"]=="error" ? " · "*first(m["error"],240) : "")
@@ -192,7 +205,7 @@ function build_comparison_viewer(;path="",root=joinpath(@__DIR__,"..","sessions"
             r=import_result!(file);show_config!(r);status[]="Đã mở kết quả A/B."
         end
     end
-    (;fig,source,steps,treatment,inputs,create,stop,openresult,fieldmenu,layermenu,standard,
+    (;fig,source,steps,treatment,kind,inputs,create,stop,openresult,fieldmenu,layermenu,standard,
         reset,axes,status,clock,slider,pointtext,destination,job,result,time,displayed,sharedlimits,deltalimits,poll!,import_result!)
 end
 function launch_comparison(;path="")

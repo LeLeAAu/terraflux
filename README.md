@@ -187,6 +187,18 @@ Có xem trước, checkpoint trước/sau, nhật ký và hoàn tác trước b�
 Khung đã lưu giữ nguyên; bấm **+6 giờ** để xem phản ứng sau tác động.
 [Hướng dẫn và giới hạn](docs/THERMAL_EXPERIMENTS.md).
 
+## Khởi tạo xoáy lý tưởng
+
+Bấm **Khởi tạo xoáy** trong viewer, chọn tâm/R/trũng áp tham chiếu/độ giảm theo
+cao, rồi chèn vào phiên live đã tạm dừng ở mốc cuối. Gió, áp suất bề mặt và
+lõi ấm được tạo theo cùng một mẫu toàn cột, có kiểm tra độ phân giải, checkpoint
+và hoàn tác. Khung cũ giữ nguyên; **+6 giờ** để xem mô hình tính diễn biến.
+
+T32 dùng mẫu rộng; T63/T85 cho phép thử mẫu nhỏ hơn ở vĩ độ thấp. Đây là xoáy
+lý tưởng hóa, **chưa phải bão nhiệt đới được xác nhận**. Trong cửa sổ A/B có lựa
+chọn **B: xoáy lý tưởng** để đối chiếu với nhánh không nhận tác động mới.
+[Cách dùng, công thức và giới hạn](docs/IDEALIZED_VORTEX.md).
+
 ## Sử dụng
 
 - **Trường quan sát:** nhiệt độ (°C), tốc độ gió (km/h), u/v (m/s), độ ẩm riêng (g/kg), độ ẩm tương đối (%), áp suất quy mực biển (hPa).
@@ -216,7 +228,7 @@ Phần bản đồ dùng kinh độ −180…180°, vĩ độ −90…90°, đư
 - `src/map_layers.jl`, `src/hover.jl`, `src/map_math.jl`: lớp phủ, đọc tại chuột và hình học/ngày đêm.
 - `note1.txt`: mục tiêu và lộ trình phát triển.
 
-Can thiệp nhiệt một lần, hoàn tác và lưu/mở lại phiên đã có. Chỉnh ẩm/gió, tác động tăng dần/duy trì vẫn còn chờ; thí nghiệm A/B từ bản lưu đã có.
+Can thiệp nhiệt một lần, hoàn tác và lưu/mở lại phiên đã có. Chỉnh ẩm/gió tự do và tác động tăng dần/duy trì vẫn còn chờ; thí nghiệm A/B từ bản lưu đã có.
 
 ## Kiểm tra
 
