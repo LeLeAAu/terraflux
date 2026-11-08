@@ -151,8 +151,8 @@ phân loại TC kiểm định, tránh chồng mọi nhãn hoặc tích hợp CU
 
 Phương pháp/cách dùng/giới hạn: [THERMAL_EXPERIMENTS.md](THERMAL_EXPERIMENTS.md).
 Bằng chứng: thermal_patch/thermal_model/intervention_viewer. Chưa phải toàn bộ
-V2: can thiệp ẩm/gió/tạo xoáy, tác động tăng dần/duy trì và giao diện so sánh
-A/B vẫn còn chờ.
+V2: can thiệp ẩm/gió/tạo xoáy và tác động tăng dần/duy trì vẫn còn chờ.
+Thí nghiệm A/B từ bản lưu đã có ở mốc bên dưới.
 
 ## Lưu/mở lại trạng thái live
 
@@ -169,7 +169,27 @@ Cách dùng/giới hạn: [SAVED_SESSIONS.md](SAVED_SESSIONS.md). Kiểm chứng
 saved_manifest/live_history/session_resume/session_viewer/session_launch: chuyển thư mục,
 xóa phiên gốc, khôi phục tác động nhiệt/undo, tính tiếp và so sánh đầu ra
 T21/8 tầng với phiên liên tục. Chưa có lưu camera/lớp phủ, đổi giới hạn ngày,
-nhập restart batch hoặc giao diện đối chiếu hai nhánh A/B.
+nhập restart batch. Thí nghiệm đối chiếu hai nhánh được ghi ở mốc kế tiếp.
+
+## V3 đầu tiên — cặp đối chứng A/B
+
+- [x] Cửa sổ riêng qua Compare_Experiments.bat/.sh và nút trong viewer; chọn
+  bản lưu, 1–40 đoạn 6 giờ, cấu hình nhiệt B hoặc cặp không có tác động mới.
+- [x] Worker kiểm tra/copy nguồn rồi khôi phục hai nhánh từ cùng checkpoint,
+  clock/RNG/config; mỗi nhánh ở tiến trình riêng, A trước/B sau, không lấy
+  trạng thái từ khung GUI.
+- [x] Ba bản đồ A/B/B−A đồng bộ tầng, mốc và vùng xem; A/B chung màu, Δ đối
+  xứng; chỉ endpoint mới cùng thời gian, giữ thiếu dữ liệu và đơn vị dẫn xuất.
+- [x] Đọc cùng ô gốc trên ba bản đồ, kết quả/nhật ký/manifest/checksum trong
+  thư mục riêng, mở lại sau khi chuyển thư mục, bản lưu cuối riêng mỗi nhánh.
+- [x] Kiểm tra cặp không tác động, B làm nóng, dừng khi metadata hỏng và từ
+  chối checkpoint sai checksum; live dùng cùng bước tính/kiểm chứng 6 giờ.
+
+Cách dùng/giới hạn: [AB_EXPERIMENTS.md](AB_EXPERIMENTS.md). Bằng chứng:
+comparison_values/comparison_model/comparison_cancel/comparison_viewer/
+comparison_reopen và
+hồi quy live/viewer. Chưa có pause/resume job A/B đang chạy, tác động ẩm/gió,
+biểu đồ điểm/vùng hoặc đối chiếu Storm Tracker. Không coi đây là toàn bộ V3.
 
 ## Danh sách cần làm theo tài liệu nguồn
 

@@ -36,7 +36,8 @@ Hoàn tác một cấp chỉ dùng trước bước tính tiếp theo. Khi đã 
 vẫn nằm trên đĩa để đối chiếu nhưng nút không quay ngược một nhánh đã tiến triển.
 Dùng **Lưu phiên / Mở phiên đã lưu** để giữ trạng thái này qua lần đóng ứng
 dụng, kể cả quyền hoàn tác còn hiệu lực: [SAVED_SESSIONS.md](SAVED_SESSIONS.md).
-Giao diện so sánh hai nhánh A/B vẫn chưa triển khai.
+Dùng **Thí nghiệm A/B** để so sánh nhánh không nhận tác động mới với nhánh
+được làm nóng/lạnh từ cùng checkpoint: [AB_EXPERIMENTS.md](AB_EXPERIMENTS.md).
 
 ## Hình dạng và phép tính
 
@@ -101,4 +102,4 @@ julia --threads=2 --project=. test/intervention_viewer.jl
 ```
 
 Đang chờ: can thiệp hơi nước/gió, tạo xoáy có cấu trúc nhất quán, áp dụng tăng
-dần/duy trì và so sánh nhánh đối chứng A/B.
+dần/duy trì, so sánh thêm các loại tác động và biểu đồ vùng A/B.

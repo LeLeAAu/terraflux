@@ -28,12 +28,13 @@ function start_session(; root=joinpath(@__DIR__,"..","sessions"), max_chunks=40,
         "julia_version"=>string(VERSION),"created_at"=>string(time()))
     spawn_session(config,root)
 end
-function resume_session(path;root=joinpath(@__DIR__,"..","sessions"))
+function resume_session(path;root=joinpath(@__DIR__,"..","sessions"),keep_open_at_limit=false)
     meta=saved_manifest(path;verify=false) # Worker verifies all hashes before deserializing state.
     config=Dict{String,Any}(meta["config"])
     config["resume_from"]=saved_manifest_path(path)
     config["model"]="PrimitiveWetModel"
     config["julia_version"]=string(VERSION)
+    keep_open_at_limit && (config["keep_open_at_limit"]=true)
     spawn_session(config,root)
 end
 function spawn_session(config,root)
@@ -92,7 +93,7 @@ function read_status(session::LiveSession)
     end
     if process_exited(session.process) && !(status["state"] in ("complete","stopped","error"))
         status["state"] = "error"
-        status["error"] = "Tiến trình kết thúc ngoài dự kiến. Xem worker.log trong thư mục phiên."
+        status["error"] = "Tiến trình kết thúc ngoài dự kiến (exit $(session.process.exitcode)). Xem worker.log trong thư mục phiên."
     end
     status
 end
@@ -102,6 +103,9 @@ function stop_session!(session::LiveSession; timeout=3.0)
         send_command!(session,"stop")
         if timedwait(() -> process_exited(session.process),timeout;pollint=0.05) == :timed_out
             kill(session.process)
+            if timedwait(()->process_exited(session.process),2.;pollint=0.05)==:timed_out
+                kill(session.process,Base.SIGKILL)
+            end
         end
         wait(session.process)
     end

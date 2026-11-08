@@ -6,3 +6,4 @@
 
 # Local startup/error logs; keep them on the machine, out of commits.
 /simulation_setup.log
+/comparison_setup.log

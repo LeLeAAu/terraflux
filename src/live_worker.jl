@@ -10,6 +10,8 @@ include("thermal_model.jl")
 using .TerraFluxThermalModel
 include("session_snapshot.jl")
 using .TerraFluxSessionSnapshot
+include("model_chunk.jl")
+using .TerraFluxModelChunk
 using Printf
 
 function worker(directory)
@@ -104,34 +106,17 @@ function worker(directory)
             if mode == "stop"
                 publish("stopped")
                 break
-            elseif completed >= config["max_chunks"]
+            elseif completed >= config["max_chunks"] && !get(config,"keep_open_at_limit",false)
                 publish("complete")
                 break
             elseif mode in ("run","step")
+                if completed>=config["max_chunks"]
+                    mode="pause";publish("paused");continue
+                end
                 undo_file=""
                 publish(mode == "run" ? "running" : "stepping")
-                start = simulation.variables.prognostic.clock.time
-                run!(simulation;period=Hour(config["chunk_hours"]),output=true)
-                finish = simulation.variables.prognostic.clock.time
-                finish-start == Hour(config["chunk_hours"]) || error("Đồng hồ mô hình không tiến đúng 6 giờ.")
-                for name in (:temperature,:u,:v,:humidity)
-                    values = Array(get_step(getproperty(simulation.variables.grid,name)))
-                    all(isfinite,values) || error("Trạng thái $name không hữu hạn; mô phỏng đã dừng.")
-                    name == :temperature && minimum(values) <= 0 && error("Nhiệt độ không hợp lệ.")
-                end
-                !model.feedback.nans_detected || error("Mô hình phát hiện phép tính mất ổn định.")
-                path = joinpath(model.output.run_path,model.output.filename)
-                SpeedyWeather.NCDataset(path,"a") do ds
-                    ds.attrib["terraflux_truncation"]=config["truncation"]
-                end
-                chunk = load_weather(path)  # NetCDF has been finalized and closed by run!.
-                chunk.times[1] == start && chunk.times[end] == finish || error("Thời gian đầu ra không khớp mô hình.")
-                for (field,data) in chunk.fields
-                    # Initial MSLP uses surface diagnostics that do not exist until physics runs.
-                    # Every completed endpoint must be valid; never mask a later model failure.
-                    checked = field in (:mslp,:pres) ? data[:,:,end:end] : data
-                    all(isfinite,checked) || error("Đầu ra $field không hữu hạn.")
-                end
+                path=run_chunk!(simulation,config["truncation"])
+                finish=simulation.variables.prognostic.clock.time
                 push!(files,abspath(path))
                 completed += 1
                 clock_time=string(finish);pending_edit=false

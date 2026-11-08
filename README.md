@@ -155,6 +155,18 @@ T/số tầng với cửa sổ đang mở, kéo `session.toml` lên `Open_TerraF
 Cần cùng phiên bản Julia/SpeedyWeather; lưu trước khi worker kết thúc. Không
 khôi phục trực tiếp từ NetCDF/restart batch. [Chi tiết](docs/SAVED_SESSIONS.md).
 
+## Thí nghiệm A/B
+
+Bấm **Thí nghiệm A/B** ở dải lưu phiên, hoặc mở **Compare_Experiments.bat**.
+Chọn một bản lưu chưa có tác động chờ, số bước 6 giờ và cấu hình nhiệt cho B,
+rồi **Tạo và chạy A/B**. A/B dùng cùng trạng thái xuất phát; A không nhận tác
+động mới, B nhận tác động một lần. Có ba bản đồ **A, B, Δ = B − A**, chung tầng,
+thời gian và vùng xem; A/B dùng cùng thang màu. Chỉ so sánh mốc mới chung.
+
+Mỗi nhánh có bản lưu cuối để mở bằng viewer; kết quả A/B mở lại bằng
+`comparison.toml`. Linux/macOS dùng `./compare_experiments.sh`.
+[Hướng dẫn và giới hạn](docs/AB_EXPERIMENTS.md).
+
 ## Địa cầu 3D
 
 Chọn **Địa cầu 3D** trong menu ở góc trên bên phải; chọn **Bản đồ 2D** để quay lại. Hai chế độ dùng chung trường, tầng, thời gian, điểm theo dõi và thang màu.
@@ -194,6 +206,8 @@ Phần bản đồ dùng kinh độ −180…180°, vĩ độ −90…90°, đư
 - `src/weather_style.jl`, `src/wind_particles.jl`: bảng màu/đơn vị hiển thị và hạt gió.
 - `src/live.jl`, `src/live_worker.jl`: điều khiển tiến trình mô phỏng riêng và công bố các đoạn dữ liệu hoàn tất.
 - `src/saved_sessions.jl`, `src/session_snapshot.jl`: bản lưu độc lập, kiểm tra toàn vẹn và khôi phục live.
+- `src/comparison*.jl`, `compare_experiments.jl`: tạo cặp A/B, tính lần lượt và xem bản đồ chênh lệch.
+- `src/model_chunk.jl`: bước 6 giờ/kiểm chứng dùng chung cho live và A/B.
 - `src/storms.jl`, `src/tracker.jl`: dữ liệu kịch bản và giao diện Storm Tracker.
 - `viewer.jl`: điểm khởi chạy, nhận đường dẫn dữ liệu.
 - `main.jl`, `check_model.jl`: mô phỏng và kiểm tra trạng thái hiện có.
@@ -202,7 +216,7 @@ Phần bản đồ dùng kinh độ −180…180°, vĩ độ −90…90°, đư
 - `src/map_layers.jl`, `src/hover.jl`, `src/map_math.jl`: lớp phủ, đọc tại chuột và hình học/ngày đêm.
 - `note1.txt`: mục tiêu và lộ trình phát triển.
 
-Can thiệp nhiệt một lần, hoàn tác và lưu/mở lại phiên đã có. Chỉnh ẩm/gió, tác động tăng dần/duy trì và giao diện so sánh A/B còn chờ triển khai.
+Can thiệp nhiệt một lần, hoàn tác và lưu/mở lại phiên đã có. Chỉnh ẩm/gió, tác động tăng dần/duy trì vẫn còn chờ; thí nghiệm A/B từ bản lưu đã có.
 
 ## Kiểm tra
 

@@ -47,7 +47,8 @@ giữa lúc lưu có thể để lại thư mục `.saving_…` chưa hoàn ch�
   những lần mở trước. Nhật ký được giữ làm hồ sơ, **không chạy lại lệnh cũ**.
 
 Đây là lưu trạng thái vật lý; camera, điểm ghim, lớp phủ và lựa chọn trường
-quan sát chưa được lưu. Chưa có giao diện so sánh nhánh A/B cạnh nhau.
+quan sát chưa được lưu. Dùng **Thí nghiệm A/B** để tạo nhánh đối chứng/can
+thiệp từ bản lưu: [AB_EXPERIMENTS.md](AB_EXPERIMENTS.md).
 
 ## Tệp và kiểm tra khi mở
 

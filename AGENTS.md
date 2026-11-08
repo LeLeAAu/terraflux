@@ -116,3 +116,22 @@ hashes before deserializing. Journals are provenance, never replayed commands.
 Check history against the full output grid, not native reduced nlon_max. Preserve
 immutable pre-edit frames and RNG across filesystem operations. Batch NetCDF or
 restart is not a saved live session. Do not claim arbitrary backend/model resume.
+
+
+A/B experiments use `src/comparison*.jl`; read `docs/AB_EXPERIMENTS.md`. Fork
+from one verified saved session without pending edits, preserving state/clock/RNG
+for both. A has no new intervention; B optionally receives a one-time thermal
+patch. A runs before B in separate live worker processes under one coordinator.
+Compare only new shared 6h endpoints,
+never unequal timestamps or the pre-edit initial frame. A/B share scales; B-A
+has a symmetric scale and preserves missing data. Wind speed difference is not
+the magnitude of vector difference; RH differences are percentage points. Input
+copy/hash/model compute belong in the worker. `model_chunk.jl` owns the validated
+6h integration used by both live and A/B; preserve its closed-file publication.
+Results and final branch archives use relative paths for relocation. Cancel must
+stop even with broken metadata and a Julia process stuck handling SIGTERM.
+
+A/B child sessions use internal keep_open_at_limit solely to save the final
+endpoint before stopping; they must never integrate beyond the frozen budget.
+The default live completion/exit behavior stays unchanged. Closing/cancelling
+the coordinator must stop and reap its child even if job metadata is broken.

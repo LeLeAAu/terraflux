@@ -268,7 +268,8 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     opensession=Button(persistence[1,3],label="Mở phiên đã lưu",buttoncolor=PANEL,labelcolor=INK)
     colsize!(persistence,1,Fixed(130));colsize!(persistence,3,Fixed(160))
     persistence_notice=Observable("Lưu khi tạm dừng · Mở bằng đường dẫn session.toml hoặc thư mục bản lưu.")
-    Label(persistence[2,1:3],persistence_notice,fontsize=11,color=MUTED,tellwidth=false,word_wrap=true)
+    Label(persistence[2,1:2],persistence_notice,fontsize=11,color=MUTED,tellwidth=false,word_wrap=true)
+    abexperiments=Button(persistence[2,3],label="Thí nghiệm A/B",buttoncolor=PANEL,labelcolor=INK)
     timeline = GridLayout(fig[4, 1:2])
     clocktext = Observable("")
     Label(timeline[1, 1:4], clocktext, fontsize=17, font=:bold, halign=:left)
@@ -531,7 +532,8 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
             persistence_notice[]="Không lưu được: "*first(problem,220)
             persistence_operation[]=""
         elseif persistence_operation[]=="open" && state in ("paused","complete","error")
-            persistence_notice[]=state=="error" ? "Không khôi phục được: "*first(status["error"],220) : state=="complete" ? "Đã mở mốc cuối. Phiên đã đủ giới hạn thời lượng." : "Đã khôi phục tại $(status["model_time"]). Bấm Chạy hoặc +6 giờ để tính tiếp."
+            at_limit=status["completed"]>=get(status,"max_chunks",typemax(Int))
+            persistence_notice[]=state=="error" ? "Không khôi phục được: "*first(status["error"],220) : state=="complete" || at_limit ? "Đã mở mốc cuối. Phiên đã đủ giới hạn thời lượng." : "Đã khôi phục tại $(status["model_time"]). Bấm Chạy hoặc +6 giờ để tính tiếp."
             persistence_operation[]=""
         end
         budget=haskey(status,"max_chunks") ? " / $(status["max_chunks"]*6)" : ""
@@ -620,6 +622,16 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     on(opensession.clicks) do _
         try;open_saved!(savedpath.displayed_string[]);catch err;persistence_notice[]=first(sprint(showerror,err),260);end
     end
+    on(abexperiments.clicks) do _
+        try
+            project=abspath(joinpath(@__DIR__,".."))
+            command=`$(Base.julia_cmd()) --threads=2 --project=$project $(joinpath(project,"compare_experiments.jl"))`
+            path=strip(savedpath.displayed_string[])
+            run(isempty(path) ? command : `$command $path`;wait=false)
+        catch err
+            persistence_notice[]=first(sprint(showerror,err),240)
+        end
+    end
     refresh()
     notify(viewmenu.selection)
     if resume_bundle!==nothing
@@ -631,7 +643,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         end
     end
     (; fig, ax, globe, tracker, session, history, sourcemenu, newrun, runmodel, pausemodel, stepmodel, stopmodel,
-        livestatus, poll_live!, replace_data!, savesession,savedpath,opensession,persistence_notice,open_saved!, viewmenu, resetview, vertexcolors, globe_marker, fieldmenu, layermenu, lockscale, slider, selected, field, layer, time,
+        livestatus, poll_live!, replace_data!, savesession,savedpath,opensession,abexperiments,persistence_notice,open_saved!, viewmenu, resetview, vertexcolors, globe_marker, fieldmenu, layermenu, lockscale, slider, selected, field, layer, time,
         pointtext, mapvalues, limits, play, back, forward, playing,
         weatherstyle,scalemenu,regionmenu,windtoggle,isobartoggle,smooth,isobars,contour_visible,durationmenu,
         overlaybutton,overlay_open,overlaysource,systemstoggle,labelstoggle,valuestoggle,nighttoggle,gridtoggle,
