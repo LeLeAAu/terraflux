@@ -106,7 +106,7 @@ function build_comparison_viewer(;path="",root=joinpath(@__DIR__,"..","sessions"
         cmap[]===palette || (cmap[]=palette)
         unit[]=display_unit(f)
         deltaunit[]=f==:rh ? "Δ · điểm phần trăm" : "Δ · "*unit[]
-        key=get(Dict(:temp=>"temperature",:wind=>"wind",:rh=>"humidity",:mslp=>"pressure"),f,nothing)
+        key=get(Dict(:temp=>"temperature",:sst=>"temperature",:lst=>"temperature",:wind=>"wind",:rh=>"humidity",:mslp=>"pressure"),f,nothing)
         bounds=finite_extrema(Iterators.flatten((a,b)))
         if standard.checked[] && key!==nothing
             sharedlimits[]=Tuple(Float32.(style[key]["range"]))
@@ -137,7 +137,7 @@ function build_comparison_viewer(;path="",root=joinpath(@__DIR__,"..","sessions"
             end
         end
         axes[2].title[]=!r.meta["treatment"] ? "B · không tác động mới" : get(r.meta,"intervention","thermal")=="vortex" ? "B · xoáy lý tưởng" : "B · can thiệp nhiệt"
-        clock[]="$(r.times[t]) · Mốc chung $t / $(length(r.times)) · $(layer_label(r.a,k)) · $(field_label(f))"
+        clock[]="$(r.times[t]) · Mốc chung $t / $(length(r.times)) · $(field_context(r.a,f,k)) · $(field_label(f))"
         last_render[]=render_key
         refresh_point!()
     end

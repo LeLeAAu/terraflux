@@ -44,7 +44,13 @@ try
         @test length(unique(history.times)) == 5
         @test frame(history,:temp,8,5) == frame(chunks[end],:temp,8,2)
         @test maximum(abs.(frame(history,:temp,8,5)-frame(history,:temp,8,1))) > 0
-        @test all(all(isfinite,v) for (f,v) in history.fields if !(f in (:mslp,:pres)))
+        @test all(all(isfinite,v) for (f,v) in history.fields if !(f in (:mslp,:pres,:sst,:lst)))
+        for f in (:sst,:lst)
+            @test haskey(history.fields,f)
+            @test size(history.fields[f])==(length(history.lon),length(history.lat),length(history.times))
+            @test any(isfinite,frame(history,f,1,2))
+            @test any(isnan,frame(history,f,1,2))
+        end
         @test all(isnan,history.fields[:mslp][:,:,1])
         @test all(isfinite,history.fields[:mslp][:,:,2:end])
         # Surface pressure, like MSLP, is explicitly unavailable before initial physics.

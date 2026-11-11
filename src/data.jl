@@ -2,14 +2,21 @@ module TerraFluxData
 using SpeedyWeather: NCDataset, NCDatasets
 using Dates
 export WeatherData, load_weather, frame, color_limits, nearest_cell, sample_value,
-       FIELDS, field_label, field_unit, layer_label, append_weather, load_live_chunk, load_live_history, finite_extrema
+       FIELDS, field_label, field_unit, layer_label, append_weather, load_live_chunk, load_live_history, finite_extrema, is_surface_field, field_context
 
-const FIELDS = [:temp, :wind, :u, :v, :humid, :mslp, :rh]
-const LABELS = Dict(:temp => "Nhiệt độ", :wind => "Tốc độ gió", :u => "Gió Đông–Tây (u)",
+const FIELDS = [:temp, :wind, :u, :v, :humid, :mslp, :rh, :sst, :lst]
+const LABELS = Dict(:temp => "Nhiệt độ không khí (theo tầng)", :sst => "Nhiệt độ mặt biển (SST)", :lst => "Nhiệt độ mặt đất (lớp trên cùng)", :wind => "Tốc độ gió", :u => "Gió Đông–Tây (u)",
     :v => "Gió Bắc–Nam (v)", :humid => "Độ ẩm riêng", :mslp => "Áp suất quy mực biển", :rh=>"Độ ẩm tương đối")
-const UNITS = Dict(:temp => "°C", :wind => "m/s", :u => "m/s", :v => "m/s", :humid => "g/kg", :mslp => "hPa", :rh=>"%")
+const UNITS = Dict(:sst => "°C", :lst => "°C", :temp => "°C", :wind => "m/s", :u => "m/s", :v => "m/s", :humid => "g/kg", :mslp => "hPa", :rh=>"%")
 field_label(field) = LABELS[field]
 field_unit(field) = UNITS[field]
+is_surface_field(f) = f in (:mslp, :pres, :sst, :lst)
+function field_context(d,f,k)
+    f==:sst && return "Mặt biển · Không phụ thuộc tầng khí quyển"
+    f==:lst && return "Lớp đất trên cùng · Không phụ thuộc tầng khí quyển"
+    f==:mslp && return "Quy về mực biển · Không phụ thuộc tầng chọn"
+    layer_label(d,k)
+end
 
 struct WeatherData
     path::String
@@ -65,6 +72,32 @@ function load_weather(path::AbstractString)
             unit=="Pa" && (values./=100f0)
             fields[:pres]=values
         end
+        # Surface temperatures are prognostic fields, separate from atmospheric temp.
+        # Keep coastal land/ocean components wherever their area fraction is nonzero.
+        if haskey(ds,"lsm")
+            maskvar=ds["lsm"]
+            NCDatasets.dimnames(maskvar)==("lon","lat") || error("Chiều mặt nạ đất/biển không hợp lệ.")
+            mask=Float32.(coalesce.(maskvar[:,:],NaN32))[ix,iy]
+            size(mask)==(length(lon),length(lat)) || error("Lưới mặt nạ đất/biển không khớp.")
+            all(x->isfinite(x) && 0<=x<=1,mask) || error("Tỷ lệ đất phải trong [0,1].")
+            for (field,name) in ((:sst,"sst"),(:lst,"st"))
+                haskey(ds,name) || continue
+                v=ds[name];unit=get(v.attrib,"units","")
+                unit in ("K","degC","°C") || error("Đơn vị nhiệt độ bề mặt không hỗ trợ: $unit")
+                dims=field==:sst ? ("lon","lat","time") : ("lon","lat","soil_layer","time")
+                NCDatasets.dimnames(v)==dims || error("Chiều nhiệt độ bề mặt không hợp lệ: $name")
+                field==:lst && size(v,3)<1 && error("Không có lớp đất trên cùng.")
+                raw=field==:sst ? v[:,:,:] : v[:,:,1,:]
+                values=Float32.(coalesce.(raw,NaN32))[ix,iy,:]
+                size(values)==size(fields[:mslp]) || error("Lưới nhiệt độ bề mặt không khớp.")
+                unit=="K" && (values .-= 273.15f0)
+                for t in axes(values,3), j in axes(values,2), i in axes(values,1)
+                    active=field==:sst ? mask[i,j]<1 : mask[i,j]>0
+                    active || (values[i,j,t]=NaN32)
+                end
+                fields[field]=values
+            end
+        end
         if get(ds.attrib,"terraflux_initial_surface_diagnostics","")=="unavailable"
             fields[:mslp][:,:,1].=NaN32
             haskey(fields,:pres) && (fields[:pres][:,:,1].=NaN32)
@@ -90,8 +123,9 @@ function frame(d::WeatherData, field::Symbol, layer::Int, time::Int)
         return relative_humidity.(@view(d.fields[:temp][:,:,layer,time]),
             @view(d.fields[:humid][:,:,layer,time]),@view(d.fields[:pres][:,:,time]),d.layers[layer])
     end
+    field in (:sst,:lst) && !haskey(d.fields,field) && return fill(NaN32,length(d.lon),length(d.lat))
     a=d.fields[field]
-    field in (:mslp,:pres) ? a[:,:,time] : a[:,:,layer,time]
+    is_surface_field(field) ? a[:,:,time] : a[:,:,layer,time]
 end
 
 "Finite extrema without allocating a filtered array; nothing means all values are missing."
@@ -139,6 +173,7 @@ function humidity_extrema(temp,q,p,sigma,layer,times)
 end
 function color_limits(d,field,layer,time;locked=true)
     checkbounds(d.layers,layer);checkbounds(d.times,time)
+    field in (:sst,:lst) && !haskey(d.fields,field) && return (0f0,1f0)
     times=locked ? eachindex(d.times) : (time:time)
     bounds=if field==:wind
         wind_extrema(d.fields[:u],d.fields[:v],layer,times)
@@ -172,25 +207,30 @@ function nearest_cell(d,lon,lat)
 end
 function sample_value(d,field,layer,time,lon,lat)
     checkbounds(d.layers,layer);checkbounds(d.times,time)
+    field in (:sst,:lst) && !haskey(d.fields,field) && return NaN32
     i,j=nearest_cell(d,lon,lat)
     field==:wind && return hypot(d.fields[:u][i,j,layer,time],d.fields[:v][i,j,layer,time])
     if field==:rh
         haskey(d.fields,:pres) && 0<d.layers[layer]<=1 || return NaN32
         return relative_humidity(d.fields[:temp][i,j,layer,time],d.fields[:humid][i,j,layer,time],d.fields[:pres][i,j,time],d.layers[layer])
     end
-    field in (:mslp,:pres) ? d.fields[field][i,j,time] : d.fields[field][i,j,layer,time]
+    is_surface_field(field) ? d.fields[field][i,j,time] : d.fields[field][i,j,layer,time]
 end
 layer_label(d, k) = "Tầng $k / $(length(d.layers)) · σ = $(round(d.layers[k]; digits=4))"
 
 function append_weather(a::WeatherData, b::WeatherData)
     (a.lon == b.lon && a.lat == b.lat && a.layers == b.layers) || error("Lưới phiên mô phỏng đã thay đổi.")
-    Set(keys(a.fields))==Set(keys(b.fields)) || error("Các trường trong đoạn mô phỏng đã thay đổi.")
+    setdiff(Set(keys(a.fields)),(:sst,:lst))==setdiff(Set(keys(b.fields)),(:sst,:lst)) || error("Các trường trong đoạn mô phỏng đã thay đổi.")
     b.times[1] == a.times[end] || error("Các đoạn mô phỏng không nối tiếp nhau.")
     length(b.times) > 1 || error("Đoạn mô phỏng không có thời gian mới.")
     fields = Dict{Symbol,Array{Float32}}()
-    for f in keys(a.fields)
-        new = f in (:mslp,:pres) ? b.fields[f][:,:,2:end] : b.fields[f][:,:,:,2:end]
-        fields[f] = cat(a.fields[f],new;dims=ndims(new))
+    for f in union(keys(a.fields),keys(b.fields))
+        left=get(a.fields,f,nothing)
+        right=get(b.fields,f,nothing)
+        left===nothing && (left=fill(NaN32,length(a.lon),length(a.lat),length(a.times)))
+        right===nothing && (right=fill(NaN32,length(b.lon),length(b.lat),length(b.times)))
+        new = is_surface_field(f) ? right[:,:,2:end] : right[:,:,:,2:end]
+        fields[f] = cat(left,new;dims=ndims(new))
     end
     WeatherData(b.path,a.lon,a.lat,a.layers,vcat(a.times,b.times[2:end]),fields)
 end
@@ -219,11 +259,21 @@ function load_live_history(paths)
     end
     for i in 2:length(paths)
         chunk=load_live_chunk(paths[i])
-        chunk.lon==first.lon && chunk.lat==first.lat && chunk.layers==first.layers && Set(keys(chunk.fields))==Set(keys(fields)) || error("Lưới/trường trong lịch sử không khớp.")
+        chunk.lon==first.lon && chunk.lat==first.lat && chunk.layers==first.layers && setdiff(Set(keys(chunk.fields)),(:sst,:lst))==setdiff(Set(keys(fields)),(:sst,:lst)) || error("Lưới/trường trong lịch sử không khớp.")
         length(chunk.times)==2 && chunk.times[1]==times[i] && chunk.times[2]-chunk.times[1]==Hour(6) || error("Lịch sử phiên không liên tục theo bước 6 giờ.")
         times[i+1]=chunk.times[2]
-        for (f,a) in chunk.fields
-            selectdim(fields[f],ndims(a),i+1).=selectdim(a,ndims(a),2)
+        for f in (:sst,:lst)
+            if haskey(chunk.fields,f) && !haskey(fields,f)
+                fields[f]=fill(NaN32,length(first.lon),length(first.lat),length(times))
+            end
+        end
+        for (f,a) in fields
+            if haskey(chunk.fields,f)
+                source=chunk.fields[f]
+                selectdim(a,ndims(a),i+1).=selectdim(source,ndims(source),2)
+            else
+                selectdim(a,ndims(a),i+1).=NaN32
+            end
         end
     end
     WeatherData(abspath(last(paths)),first.lon,first.lat,first.layers,times,fields)

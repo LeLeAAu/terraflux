@@ -11,6 +11,8 @@ grid = SpectralGrid(
 
 # Mô hình khí quyển có hơi nước
 model = PrimitiveWetModel(grid)
+add!(model, SpeedyWeather.SeaSurfaceTemperatureOutput(),
+    SpeedyWeather.SoilTemperatureOutput(), SpeedyWeather.LandSeaMaskOutput())
 
 println("Đang khởi tạo mô phỏng...")
 simulation = initialize!(model)

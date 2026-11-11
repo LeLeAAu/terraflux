@@ -351,3 +351,13 @@ khí quyển nền. Chưa thêm ẩm/SST/đối lưu mới, duy trì xoáy, xác
 
 Khi hoàn thành một mục, đánh dấu cùng bằng chứng kiểm tra và cập nhật phần còn
 thiếu. Không đánh dấu hoàn thành chỉ vì đã vẽ được một biểu tượng hoặc bảng số.
+
+## Tách nhiệt độ không khí, mặt biển và mặt đất
+
+Đã thêm lựa chọn riêng cho nhiệt độ khí quyển theo tầng, SST và lớp đất trên
+cùng; các lần chạy batch/live mới ghi thêm trạng thái bề mặt và tỷ lệ đất.
+Viewer 2D/3D, hover và A/B dùng chung quy tắc mặt nạ và đơn vị, trường bề mặt
+không phụ thuộc tầng khí quyển. Tệp cũ báo thiếu thay vì lấy nhiệt khí quyển
+làm nhiệt bề mặt. Chi tiết: `WEATHER_MAPS.md`, kiểm tra:
+`test/surface_temperatures.jl`, `test/surface_viewer.jl`. Việc này chưa chẩn đoán hay thay đổi cân bằng
+năng lượng/giai đoạn spin-up của mô hình.

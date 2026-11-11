@@ -159,3 +159,12 @@ pre-edit frames, one-level undo and RNG checkpoints. Native size and measured
 wind projection fit are rejection gates, not values to relax to make a case pass.
 A/B metadata has optional intervention="thermal"/"vortex"; absent means thermal.
 No new TC/SSHWS classification is implied by inserting the template.
+
+
+Temperature fields are distinct: temp is atmospheric sigma-layer air temperature,
+sst is sea surface temperature, and lst reads the uppermost st soil layer used
+for land surface heat exchange. New batch/live output includes sst/st/lsm via
+upstream output writers (CPU/CUDA). Mask by nonzero land/ocean fraction; mixed
+coastal cells may have both components. Never substitute air temperature or a
+drawn coastline for missing surface data. See docs/WEATHER_MAPS.md and
+test/surface_temperatures.jl.

@@ -19,12 +19,18 @@ function run_chunk!(simulation,truncation)
     path=joinpath(model.output.run_path,model.output.filename)
     SpeedyWeather.NCDataset(path,"a") do ds
         ds.attrib["terraflux_truncation"]=truncation
+        for name in ("sst","st")
+            haskey(ds,name) || continue
+            all(x->!ismissing(x) && isfinite(x),ds[name][ntuple(_->Colon(),ndims(ds[name]))...]) || error("Đầu ra $name không hữu hạn.")
+        end
     end
     chunk=load_weather(path)
     length(chunk.times)==2 && chunk.times[1]==start && chunk.times[end]==finish || error("Thời gian đầu ra không khớp mô hình.")
     for (field,data) in chunk.fields
         # Surface diagnostics at the very first initialization are unavailable.
         checked=field in (:mslp,:pres) ? data[:,:,end:end] : data
+        # Surface values were validated above before applying the land/ocean mask.
+        field in (:sst,:lst) && continue
         all(isfinite,checked) || error("Đầu ra $field không hữu hạn.")
     end
     abspath(path)

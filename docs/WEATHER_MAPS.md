@@ -132,3 +132,34 @@ cuối. Bộ 60 ngày đã được kiểm tra đồng hồ, đủ 241 mốc, c�
 Kiểm thử: `test/weather_data.jl` (RH, đơn vị, hướng gió/metric cầu, đường đổi ngày,
 dữ liệu thiếu), `test/weather_viewer.jl` (palette, bốn lớp, pixel chuyển động,
 2D/3D, menu ẩn, dữ liệu không đổi), cùng kiểm tra viewer và phiên live thực.
+
+## Ba trường nhiệt độ độc lập
+
+- **Nhiệt độ không khí (theo tầng)**: `temp(lon,lat,layer,time)`, chọn tầng
+  sigma; không phải nhiệt độ không khí 2 m hay nhiệt độ bề mặt.
+- **Nhiệt độ mặt biển (SST)**: `sst(lon,lat,time)` từ trạng thái đại dương.
+- **Nhiệt độ mặt đất (lớp trên cùng)**: lớp `soil_layer=1` của
+  `st(lon,lat,soil_layer,time)`. Đây là nhiệt độ lớp đất mà SpeedyWeather dùng
+  cho trao đổi nhiệt bề mặt, không phải nhiệt độ không khí hay nhiệt độ đất sâu.
+
+Batch và live mới ghi thêm `sst`, `st`, `lsm` bằng các output writer của
+SpeedyWeather, dùng cùng đường xuất CPU/CUDA. Hai trường bề mặt không phụ thuộc
+menu tầng khí quyển. Viewer đổi K sang °C nếu cần và dùng cùng bảng màu nhiệt độ
+trên 2D/3D và A/B. Hover, lấy mẫu điểm và chênh lệch A/B giữ nguyên ô thiếu.
+
+`lsm` là tỷ lệ đất trong ô: SST chỉ hiện nơi tỷ lệ đất <1; nhiệt độ đất chỉ
+hiện nơi tỷ lệ đất >0. Ô bờ biển hỗn hợp có thể có cả hai giá trị, mỗi giá trị
+đại diện thành phần riêng, không nhân nhiệt độ với tỷ lệ diện tích. Các ô không
+có thành phần tương ứng bị che bằng NaN. Không dùng đường bờ vẽ để suy mặt nạ.
+Tệp cũ thiếu trường hoặc thiếu `lsm` vẫn mở bình thường, nhưng trường bề mặt
+báo thiếu dữ liệu; cần tạo mô phỏng mới để ghi, không suy SST từ khí quyển.
+
+Kiểm tra dữ liệu: `julia --project=. test/surface_temperatures.jl`.
+
+Kiểm chứng thay đổi: kiểm thử nhiệt độ bề mặt 25/25, thang màu/lấy mẫu
+133/133, A/B 14/14; mô phỏng batch CPU T21/8 tầng/1 ngày tạo 5 khung và
+đọc được các trường bề mặt; live CPU đạt 29/29 kiểm tra điều khiển/xuất dữ liệu.
+Các số này không phải kiểm chứng chạy CUDA trên phần cứng NVIDIA.
+Kiểm tra đồ họa trên Xvfb cũng đã qua: `test/surface_viewer.jl` đạt 12/12,
+chuyển SST/đất giữa 2D/3D và đổi tầng mà giữ nguyên trường bề mặt;
+`test/viewer_smoke.jl` hoàn tất thành công trên bộ NetCDF cũ.

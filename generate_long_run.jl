@@ -36,6 +36,7 @@ function generate_long_run(days=60,directory=joinpath(@__DIR__,"datasets","earth
     glog("Thiết lập NetCDFOutput tại: $(abspath(directory))...")
     output=NetCDFOutput(grid,PrimitiveWet;path=abspath(directory),interval=Hour(cfg.output_hours))
     add!(output,SurfacePressureOutput())
+    add!(output, SpeedyWeather.SeaSurfaceTemperatureOutput(), SpeedyWeather.SoilTemperatureOutput(), SpeedyWeather.LandSeaMaskOutput())
     
     glog("Khởi tạo PrimitiveWetModel và trạng thái ban đầu...")
     model=PrimitiveWetModel(grid;output)
@@ -97,7 +98,7 @@ function generate_long_run(days=60,directory=joinpath(@__DIR__,"datasets","earth
             glog("[LỖI] Mốc thời gian NetCDF không khớp (thực tế: $(length(actual_times)), mong đợi: $(length(expected_times))).")
             error("Thiếu mốc đầu ra.")
         end
-        for key in ("temp","u","v","humid","mslp","pres")
+        for key in ("temp","u","v","humid","mslp","pres","sst","st")
             variable=ds[key]
             first_time=key in ("mslp","pres") ? 2 : 1
             for t in first_time:length(ds["time"])

@@ -18,7 +18,7 @@ function load_weather_style(path=joinpath(@__DIR__,"..","assets","weather","styl
     1<=style["pressure"]["isobar_interval_hpa"]<=20 || error("Khoảng đẳng áp không hợp lệ.")
     style
 end
-style_key(f)=get(Dict(:temp=>"temperature",:wind=>"wind",:rh=>"humidity",:mslp=>"pressure"),f,nothing)
+style_key(f)=get(Dict(:temp=>"temperature",:sst=>"temperature",:lst=>"temperature",:wind=>"wind",:rh=>"humidity",:mslp=>"pressure"),f,nothing)
 function weather_palette(style,f)
     key=style_key(f)
     key===nothing && return f in (:u,:v) ? Makie.to_colormap(:balance) : Makie.to_colormap(:haline)

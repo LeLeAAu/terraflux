@@ -402,14 +402,14 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
                 weather_limits(weatherstyle,d,f,k,t;standard,locked=false)
             end
         end
-        description = f == :mslp ? "Quy về mực biển · Không phụ thuộc tầng chọn" : layer_label(d, k)
+        description = field_context(d,f,k)
         title[] = "$(field_label(f)) / $(display_unit(f))\n$description"
         clocktext[] = "$(Dates.format(d.times[t], dateformat"yyyy-mm-dd HH:MM"))   ·   Khung $t / $(length(d.times))"
         bounds=finite_extrema(a)
-        stattext[] = bounds===nothing ? (f==:rh && !haskey(d.fields,:pres) ? "Cần áp suất bề mặt để tính RH.\nTệp cũ chỉ có độ ẩm riêng." : f==:rh && t==1 ? "RH thiếu dữ liệu khởi tạo.\nThử khung tiếp theo (+6 giờ)." : f == :mslp && t == 1 ? "Áp suất mốc khởi tạo\nchưa được mô hình tính." : "Khung này thiếu dữ liệu.") : @sprintf("Toàn bản đồ / %s\nMin  %.3f\nMax  %.3f", display_unit(f), bounds[1], bounds[2])
+        stattext[] = bounds===nothing ? (f in (:sst,:lst) && !haskey(d.fields,f) ? "Tệp chưa có nhiệt độ bề mặt hoặc mặt nạ đất/biển.\nCần tạo mô phỏng mới để ghi trường này." : f==:rh && !haskey(d.fields,:pres) ? "Cần áp suất bề mặt để tính RH.\nTệp cũ chỉ có độ ẩm riêng." : f==:rh && t==1 ? "RH thiếu dữ liệu khởi tạo.\nThử khung tiếp theo (+6 giờ)." : f == :mslp && t == 1 ? "Áp suất mốc khởi tạo\nchưa được mô hình tính." : "Khung này thiếu dữ liệu.") : @sprintf("Toàn bản đồ / %s\nMin  %.3f\nMax  %.3f", display_unit(f), bounds[1], bounds[2])
         contour_visible[]=viewmenu.selection[]==:map && f==:mslp && isobartoggle.checked[]
         contour_visible[] && (pressure_values[]=vcat(a,a[1:1,:]))
-        ticks=get(Dict(:temp=>(-30:10:50),:wind=>(0:20:120),:rh=>(0:25:100),:mslp=>(970:15:1045)),f,Makie.automatic)
+        ticks=get(Dict(:temp=>(-30:10:50),:sst=>(-30:10:50),:lst=>(-30:10:50),:wind=>(0:20:120),:rh=>(0:25:100),:mslp=>(970:15:1045)),f,Makie.automatic)
         colorbar.ticks[]=scalemenu.selection[]==:weather ? ticks : Makie.automatic
         update_wind_frame!()
         refresh_point()

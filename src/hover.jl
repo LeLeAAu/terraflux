@@ -29,7 +29,7 @@ function build_hover(fig,ax,globe,tracker,mode,menus,layers,systems;get_data,get
         i,j=nearest_cell(d,location...);value=get_values()[i,j]
         reading=isfinite(value) ? @sprintf("%.2f %s",value,display_unit(f)) : "Thiếu dữ liệu"
         message="$(field_label(f)): $reading\n"*@sprintf("Ô gần nhất %.2f° / %.2f°",d.lon[i],d.lat[j])
-        f!=:mslp && (message*="\nσ = $(round(d.layers[k];digits=4))")
+        !is_surface_field(f) && (message*="\nσ = $(round(d.layers[k];digits=4))")
         item=systems[] && mode[]!=:tracker ? layers.system_at(location...) : nothing
         id=item===nothing ? nothing : item.system.id
         if item!==nothing

@@ -30,3 +30,15 @@ include(joinpath(@__DIR__,"..","src","comparison.jl"));using .TerraFluxCompariso
     end
     @test_throws ErrorException start_comparison("missing";steps=0)
 end
+
+@testset "Surface temperature differences do not use atmospheric layers" begin
+    fields=Dict{Symbol,Array{Float32}}(:sst=>fill(26f0,2,2,2),:lst=>fill(35f0,2,2,2))
+    fields[:sst][1,1,:].=NaN32
+    a=WeatherData("a",[-180.,0.],[-45.,45.],[0.25,0.9375],[DateTime(2000),DateTime(2000)+Hour(6)],fields)
+    b=WeatherData("b",a.lon,a.lat,a.layers,a.times,Dict(f=>v.+2f0 for (f,v) in fields))
+    r=(;a,b,times=a.times[2:end])
+    @test isequal(comparison_values(r,:sst,1,1).delta,comparison_values(r,:sst,2,1).delta)
+    @test isnan(comparison_values(r,:sst,1,1).delta[1,1])
+    @test comparison_values(r,:sst,2,1).delta[2,2]==2f0
+    @test all(comparison_values(r,:lst,2,1).delta.==2f0)
+end
