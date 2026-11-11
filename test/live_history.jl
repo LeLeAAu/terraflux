@@ -34,5 +34,6 @@ end
         chunk(c,[12,18]);@test_throws ErrorException load_live_history([a,c])
         chunk(c,[6,9]);@test_throws ErrorException load_live_history([a,c])
         @test_throws ErrorException load_live_history(String[])
+        chunk(c,[6,6]);@test_throws ErrorException load_weather(c)
     end
 end

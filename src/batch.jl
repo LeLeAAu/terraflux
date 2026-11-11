@@ -1,5 +1,7 @@
 module TerraFluxBatch
 using TOML, Dates
+include("process_control.jl")
+using .TerraFluxProcessControl
 include("experiment_config.jl")
 using .TerraFluxExperimentConfig
 export BatchJob,start_batch,batch_status,stop_batch!
@@ -133,8 +135,10 @@ function stop_batch!(job)
         if terminal
             timedwait(()->process_exited(job.process),2;pollint=0.02)==:ok && return
         end
-        kill(job.process)
-        wait(job.process)
+        stop_process!(job.process)
+        latest=try;TOML.parsefile(joinpath(job.directory,"status.toml"));catch;Dict();end
+        get(latest,"state","")=="error" && return
+        get(latest,"state","")=="complete" && success(job.process) && return
         logfile = joinpath(job.directory, "worker.log")
         try
             open(logfile, "a") do io
@@ -143,8 +147,12 @@ function stop_batch!(job)
             end
         catch
         end
-        open(joinpath(job.directory,"status.toml"),"w") do io
-            TOML.print(io,Dict("state"=>"stopped","error"=>"Đã dừng; đầu ra chưa hoàn tất không được công bố."))
+        try
+            open(joinpath(job.directory,"status.toml"),"w") do io
+                TOML.print(io,Dict("state"=>"stopped","error"=>"Đã dừng; đầu ra chưa hoàn tất không được công bố."))
+            end
+        catch
+            # The process is stopped even if its directory was moved/deleted.
         end
     end
 end

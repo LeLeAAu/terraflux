@@ -115,6 +115,19 @@ try
         @test !viewer.globe.scene.visible[]
         @test viewer.selected[] == cell
     end
+    @testset "Locked scale cache follows replaced data" begin
+        viewer.scalemenu.i_selected[]=2
+        viewer.fieldmenu.i_selected[]=1
+        viewer.lockscale.checked[]=true
+        before=viewer.limits[]
+        fields=copy(data.fields);fields[:temp]=data.fields[:temp].+10f0
+        changed=WeatherData(data.path,data.lon,data.lat,data.layers,data.times,fields)
+        viewer.replace_data!(changed)
+        @test all(isapprox.(viewer.limits[],before .+ 10f0))
+        @test isequal(viewer.mapvalues[][1:end-1,:],display_frame(changed,:temp,viewer.layer[],length(data.times)))
+        viewer.replace_data!(data)
+        @test viewer.limits[]==before
+    end
     println("VIEWER_SMOKE_PASSED")
 finally
     close(screen)

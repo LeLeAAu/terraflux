@@ -39,9 +39,14 @@ function build_comparison_viewer(;path="",root=joinpath(@__DIR__,"..","sessions"
     Label(extra[1,3],"Giảm theo cao k",fontsize=12)
     inputs[:depth]=Textbox(extra[1,4],stored_string="0.75",width=80,reset_on_defocus=false)
     Label(extra[1,5],"Nhiệt: R 1000–5000, tầng, ΔT · Xoáy: R 800–3000, trũng áp, k.",fontsize=11)
+    vortex_defaults_used=Ref(false)
     on(kind.selection) do choice
-        if choice=="vortex"
-            Makie.set!(inputs[:lat],"35");Makie.set!(inputs[:radius_km],"3000")
+        if choice=="vortex" && !vortex_defaults_used[]
+            # Suggest compatible defaults once, without erasing edited coordinates.
+            if inputs[:lat].displayed_string[]=="20" && inputs[:radius_km].displayed_string[]=="2500"
+                Makie.set!(inputs[:lat],"35");Makie.set!(inputs[:radius_km],"3000")
+            end
+            vortex_defaults_used[]=true
         end
     end
     status=Observable("Lưu phiên live đã tạm dừng sau ít nhất +6 giờ, rồi dán đường dẫn ở trên. Chọn 1–40 bước; physics dùng CPU.")
@@ -71,49 +76,79 @@ function build_comparison_viewer(;path="",root=joinpath(@__DIR__,"..","sessions"
     job=Ref{Union{Nothing,ComparisonJob}}(nothing);result=Ref{Any}(nothing)
     resultpath=Ref("");imported=Ref(0);time=Observable(1);selected=Ref{Any}(nothing)
     displayed=Ref{Any}(nothing);importing=Ref(false)
+    const_point_help="Bấm một bản đồ để đọc cùng một ô trên A, B và Δ. Các khung xuất phát trước tác động không được dùng làm kết quả sau tác động."
+    mapdata=[Observable(fill(NaN32,2,2)) for _ in 1:3]
+    mapgrid=Ref{Any}(nothing);last_render=Ref{Any}(nothing)
+    delta_cache=Dict{Tuple{Symbol,Int},Float32}();palette_cache=Dict{Symbol,Vector{RGBAf}}()
+    function refresh_point!()
+        if result[]===nothing || displayed[]===nothing || selected[]===nothing
+            pointtext[]=const_point_help;return
+        end
+        r=result[];f=fieldmenu.selection[];i,j=selected[];a,b,delta=displayed[]
+        value(x)=isfinite(x) ? @sprintf("%.4g",x) : "thiếu"
+        pointtext[]=@sprintf("Ô %.2f° / %.2f° · A %s %s · B %s %s · Δ %s %s",r.a.lon[i],r.a.lat[j],
+            value(a[i,j]),unit[],value(b[i,j]),unit[],value(delta[i,j]),f==:rh ? "điểm %" : unit[])
+    end
+    function clear_maps!()
+        for ax in axes;empty!(ax);end
+        mapgrid[]=nothing;last_render[]=nothing
+    end
     function refresh!()
         (result[]===nothing || importing[] || layermenu.selection[]===nothing) && return
         r=result[];f=fieldmenu.selection[];k=layermenu.selection[];t=clamp(time[],1,length(r.times))
+        render_key=(r.a,r.b,f,k,t,standard.checked[])
+        if last_render[]===render_key;refresh_point!();return;end
         values=comparison_values(r,f,k,t)
         factor=f==:wind ? 3.6f0 : 1f0
         a,b,delta=(values.a.*factor,values.b.*factor,values.delta.*factor)
         displayed[]=(;a,b,delta)
-        cmap[]=weather_palette(style,f);unit[]=display_unit(f)
+        palette=get!(()->weather_palette(style,f),palette_cache,f)
+        cmap[]===palette || (cmap[]=palette)
+        unit[]=display_unit(f)
         deltaunit[]=f==:rh ? "Δ · điểm phần trăm" : "Δ · "*unit[]
         key=get(Dict(:temp=>"temperature",:wind=>"wind",:rh=>"humidity",:mslp=>"pressure"),f,nothing)
-        vals=filter(isfinite,vcat(vec(a),vec(b)))
+        bounds=finite_extrema(Iterators.flatten((a,b)))
         if standard.checked[] && key!==nothing
             sharedlimits[]=Tuple(Float32.(style[key]["range"]))
         else
-            lo,hi=isempty(vals) ? (-1f0,1f0) : extrema(vals)
+            lo,hi=bounds===nothing ? (-1f0,1f0) : bounds
             f in (:u,:v) && ((lo,hi)=(-max(abs(lo),abs(hi)),max(abs(lo),abs(hi))))
             sharedlimits[]=lo==hi ? (lo-1f0,hi+1f0) : (lo,hi)
         end
-        bound=0f0
-        for i in eachindex(r.times)
-            differences=comparison_values(r,f,k,i).delta
-            for x in differences;isfinite(x) && (bound=max(bound,abs(x)*factor));end
+        bound=get!(delta_cache,(f,k)) do
+            maximum_delta=0f0
+            for i in eachindex(r.times)
+                differences=comparison_values(r,f,k,i).delta
+                for x in differences;isfinite(x) && (maximum_delta=max(maximum_delta,abs(x)*factor));end
+            end
+            maximum_delta>0 ? maximum_delta : 1f0
         end
-        bound=bound>0 ? bound : 1f0;deltalimits[]=(-bound,bound)
-        for (i,(ax,matrix)) in enumerate(zip(axes,(a,b,delta)))
-            empty!(ax)
-            heatmap!(ax,vcat(r.a.lon,r.a.lon[1]+360),r.a.lat,vcat(matrix,matrix[1:1,:]);
-                colorrange=i==3 ? deltalimits : sharedlimits,colormap=i==3 ? :balance : cmap,
-                nan_color=:transparent,interpolate=true)
-            lines!(ax,GeoMakie.coastlines();color=(:black,0.8),linewidth=0.6,xautolimits=false,yautolimits=false)
+        deltalimits[]=(-bound,bound)
+        newgrid=mapgrid[]===nothing || mapgrid[][1]!=r.a.lon || mapgrid[][2]!=r.a.lat
+        if newgrid;clear_maps!();mapgrid[]=(r.a.lon,r.a.lat);end
+        for (i,matrix) in enumerate((a,b,delta))
+            mapdata[i][]=vcat(matrix,matrix[1:1,:])
+            if newgrid
+                ax=axes[i]
+                heatmap!(ax,vcat(r.a.lon,r.a.lon[1]+360),r.a.lat,mapdata[i];
+                    colorrange=i==3 ? deltalimits : sharedlimits,colormap=i==3 ? :balance : cmap,
+                    nan_color=:transparent,interpolate=true)
+                lines!(ax,GeoMakie.coastlines();color=(:black,0.8),linewidth=0.6,xautolimits=false,yautolimits=false)
+            end
         end
         axes[2].title[]=!r.meta["treatment"] ? "B · không tác động mới" : get(r.meta,"intervention","thermal")=="vortex" ? "B · xoáy lý tưởng" : "B · can thiệp nhiệt"
         clock[]="$(r.times[t]) · Mốc chung $t / $(length(r.times)) · $(layer_label(r.a,k)) · $(field_label(f))"
-        if selected[]!==nothing
-            i,j=selected[]
-            value(x)=isfinite(x) ? @sprintf("%.4g",x) : "thiếu"
-            pointtext[]=@sprintf("Ô %.2f° / %.2f° · A %s %s · B %s %s · Δ %s %s",r.a.lon[i],r.a.lat[j],
-                value(a[i,j]),unit[],value(b[i,j]),unit[],value(delta[i,j]),f==:rh ? "điểm %" : unit[])
-        end
+        last_render[]=render_key
+        refresh_point!()
     end
     function import_result!(path;verify=true)
-        r=load_comparison(path;verify)
         old=result[]
+        r=load_comparison(path;verify,previous=old)
+        if old===nothing || old.a!==r.a || old.b!==r.b
+            empty!(delta_cache)
+        end
+        follow=old===nothing || old.path!=r.path || time[]==length(old.times)
+        selected_time=follow ? length(r.times) : clamp(time[],1,length(r.times))
         (old===nothing || old.a.lon!=r.a.lon || old.a.lat!=r.a.lat) && (selected[]=nothing)
         importing[]=true
         try
@@ -122,8 +157,8 @@ function build_comparison_viewer(;path="",root=joinpath(@__DIR__,"..","sessions"
                 layermenu.options[]=[(layer_label(r.a,k),k) for k in eachindex(r.a.layers)]
                 layermenu.i_selected[]=length(r.a.layers)
             end
-            slider.range[]=1:length(r.times);set_close_to!(slider,length(r.times))
-            time[]=length(r.times)
+            slider.range[]=1:length(r.times);set_close_to!(slider,selected_time)
+            time[]=selected_time
         finally
             importing[]=false
         end
@@ -147,7 +182,7 @@ function build_comparison_viewer(;path="",root=joinpath(@__DIR__,"..","sessions"
     for ax in axes
         on(events(ax.scene).mousebutton;priority=2) do event
             if result[]!==nothing && event.button==Mouse.left && event.action==Mouse.press && Makie.is_mouseinside(ax.scene)
-                p=mouseposition(ax);selected[]=nearest_cell(result[].a,p...);refresh!()
+                p=mouseposition(ax);selected[]=nearest_cell(result[].a,p...);refresh_point!()
             end
             Consume(false)
         end
@@ -155,11 +190,12 @@ function build_comparison_viewer(;path="",root=joinpath(@__DIR__,"..","sessions"
     on(create.clicks) do _
         try
             job[]!==nothing && process_running(job[].process) && error("Đợi hoặc dừng thí nghiệm đang chạy trước.")
+            job[]===nothing || TerraFluxComparison.close_stop_input(job[])
             keys=kind.selection[]=="vortex" ? (:lon,:lat,:radius_km,:pressure_drop_hpa,:depth) : (:lon,:lat,:radius_km,:layer,:delta_k)
             patch=treatment.checked[] ? (;(key=>parse(key==:layer ? Int : Float64,inputs[key].displayed_string[]) for key in keys)...) : nothing
             job[]=start_comparison(input_path(source.displayed_string[]);patch,treatment=treatment.checked[],intervention=kind.selection[],steps=parse(Int,steps.displayed_string[]),root)
             result[]=nothing;resultpath[]="";imported[]=0;selected[]=nothing;displayed[]=nothing
-            for ax in axes;empty!(ax);end
+            clear_maps!();empty!(delta_cache);refresh_point!()
             clock[]="Chờ mốc mới chung sau khi A và B tính xong."
             destination[]="Kết quả và nhật ký: $(job[].directory)"
             status[]="Đang nạp/biên dịch. A tính trước, sau đó B; cửa sổ vẫn phản hồi."
@@ -178,6 +214,7 @@ function build_comparison_viewer(;path="",root=joinpath(@__DIR__,"..","sessions"
         try
             job[]!==nothing && process_running(job[].process) && error("Dừng hoặc chờ thí nghiệm hiện tại hoàn tất trước khi mở kết quả khác.")
             r=import_result!(input_path(source.displayed_string[]));show_config!(r)
+            job[]===nothing || TerraFluxComparison.close_stop_input(job[])
             job[]=nothing # Stop polling the prior completed job when viewing another result.
             status[]="Đã mở kết quả A/B; thanh thời gian chỉ phát lại các mốc chung."
         catch err
@@ -206,7 +243,7 @@ function build_comparison_viewer(;path="",root=joinpath(@__DIR__,"..","sessions"
         end
     end
     (;fig,source,steps,treatment,kind,inputs,create,stop,openresult,fieldmenu,layermenu,standard,
-        reset,axes,status,clock,slider,pointtext,destination,job,result,time,displayed,sharedlimits,deltalimits,poll!,import_result!)
+        reset,axes,status,clock,slider,pointtext,destination,job,result,time,displayed,sharedlimits,deltalimits,poll!,import_result!,mapdata,delta_cache)
 end
 function launch_comparison(;path="")
     ui=build_comparison_viewer(;path)

@@ -136,6 +136,16 @@ endpoint before stopping; they must never integrate beyond the frozen budget.
 The default live completion/exit behavior stays unchanged. Closing/cancelling
 the coordinator must stop and reap its child even if job metadata is broken.
 
+Viewer scale/palette and A/B delta caches rely on immutable recorded data;
+invalidate scales when replacing WeatherData. Reuse A/B plots on the same grid
+and cached history only while its payload prefix matches; checksum verification
+must still cover cached files. See docs/PERFORMANCE_FIXES.md for regression checks.
+Worker cancellation shares process_control.jl (cooperative wait, TERM, bounded
+KILL fallback, reap). A/B owns a STOP/EOF stdin pipe; child live workers use
+devnull stdin. Give the coordinator at least 6 seconds to clean up its child,
+even when a caller requests a shorter grace. Never increment a live command
+sequence until its atomic file publication succeeds.
+
 
 Idealized vortex initialization is in `vortex_profiles.jl`, `vortex_model.jl`,
 and `vortex_panel.jl`; read `docs/IDEALIZED_VORTEX.md` before changing it. It is

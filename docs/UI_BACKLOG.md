@@ -52,6 +52,11 @@ nguyên toàn bộ yêu cầu chi tiết để không bỏ sót khi hoàn thiệ
 
 ## Bổ sung sau phản hồi sử dụng
 
+- [x] Rà soát hiệu năng/độ ổn định: cache thang màu có xóa khi thay dữ liệu,
+  đọc điểm không tạo cả frame, giữ plot A/B qua các lần tua, nạp thêm lịch sử,
+  giữ mốc đang xem và thông số nhập. Kiểm tra cả hủy worker khi metadata/tệp
+  lệnh bị lỗi; chi tiết và giới hạn trong [PERFORMANCE_FIXES.md](PERFORMANCE_FIXES.md).
+
 - [x] Cô lập đầu vào của widget theo chế độ; menu ẩn không nhận chuột/phím và
   popup được đóng khi đổi chế độ. Kiểm tra bằng bấm, gõ tìm kiếm và chọn mục thật
   trong `test/menu_scopes.jl`, cùng hồi quy trên toàn bộ viewer.

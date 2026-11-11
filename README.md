@@ -2,6 +2,8 @@
 
 Trình quan sát khí quyển từ dữ liệu mô phỏng SpeedyWeather. Bản V1 hiện tại mở dữ liệu NetCDF đã ghi, không chạy lại mô phỏng khi kéo thời gian.
 
+Các sửa lỗi và kết quả đo hiệu năng gần đây: [PERFORMANCE_FIXES.md](docs/PERFORMANCE_FIXES.md).
+
 ![Giao diện TerraFlux](docs/map_overlays.png)
 
 ## Mở trên Windows

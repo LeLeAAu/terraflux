@@ -2,7 +2,7 @@ module TerraFluxData
 using SpeedyWeather: NCDataset, NCDatasets
 using Dates
 export WeatherData, load_weather, frame, color_limits, nearest_cell, sample_value,
-       FIELDS, field_label, field_unit, layer_label, append_weather, load_live_chunk, load_live_history
+       FIELDS, field_label, field_unit, layer_label, append_weather, load_live_chunk, load_live_history, finite_extrema
 
 const FIELDS = [:temp, :wind, :u, :v, :humid, :mslp, :rh]
 const LABELS = Dict(:temp => "Nhiệt độ", :wind => "Tốc độ gió", :u => "Gió Đông–Tây (u)",
@@ -35,7 +35,7 @@ function load_weather(path::AbstractString)
         length(lon) >= 2 && length(lat) >= 2 && !isempty(layers) && !isempty(times) || error("Lưới dữ liệu rỗng hoặc quá nhỏ.")
         all(isfinite, lon) && all(isfinite, lat) && all(isfinite, layers) || error("Tọa độ không hữu hạn.")
         all(diff(lon) .> 0) && all(diff(lat) .> 0) || error("Tọa độ lưới phải khác nhau.")
-        issorted(times) || error("Thời gian không theo thứ tự.")
+        all(i->times[i]>times[i-1],2:length(times)) || error("Thời gian phải tăng và không được lặp.")
         fields = Dict{Symbol, Array{Float32}}()
         expected_units = Dict(:temp => ("degC", "K", "°C"), :u => ("m/s",), :v => ("m/s",),
             :humid => ("kg/kg", "g/kg"), :mslp => ("hPa", "Pa"))
@@ -73,62 +73,118 @@ function load_weather(path::AbstractString)
     end
 end
 
+# RH with respect to liquid water, using Bolton (1980) saturation vapour pressure.
+@inline function relative_humidity(T,q,p,sigma)
+    isfinite(T) && isfinite(q) && isfinite(p) && T> -100 && T<100 && q>=0 && q<1000 && p>0 || return NaN32
+    specific=Float64(q)/1000
+    vapor=specific*(sigma*p)/(0.622+0.378specific)
+    saturation=6.112exp(17.67T/(T+243.5))
+    Float32(100vapor/saturation)
+end
 function frame(d::WeatherData, field::Symbol, layer::Int, time::Int)
-    checkbounds(d.layers, layer)
-    checkbounds(d.times, time)
-    field == :wind && return hypot.(frame(d, :u, layer, time), frame(d, :v, layer, time))
+    checkbounds(d.layers,layer);checkbounds(d.times,time)
+    field==:wind && return hypot.(@view(d.fields[:u][:,:,layer,time]),@view(d.fields[:v][:,:,layer,time]))
     if field==:rh
         haskey(d.fields,:pres) && 0<d.layers[layer]<=1 || return fill(NaN32,length(d.lon),length(d.lat))
-        # RH with respect to liquid water (Bolton 1980 saturation-vapour formula).
-        # Use actual sigma-layer pressure, never MSLP as a surface-pressure substitute.
-        temperature=@view d.fields[:temp][:,:,layer,time]
-        humidity=@view d.fields[:humid][:,:,layer,time]
-        pressure=@view d.fields[:pres][:,:,time]
-        return map(temperature,humidity,pressure) do T,q,p
-            isfinite(T) && isfinite(q) && isfinite(p) && T> -100 && T<100 && q>=0 && q<1000 && p>0 || return NaN32
-            specific=Float64(q)/1000
-            vapor=specific*(d.layers[layer]*p)/(0.622+0.378specific)
-            saturation=6.112exp(17.67T/(T+243.5))
-            Float32(100vapor/saturation)
-        end
+        # Actual sigma pressure, never MSLP. The scalar and full-frame paths share arithmetic.
+        return relative_humidity.(@view(d.fields[:temp][:,:,layer,time]),
+            @view(d.fields[:humid][:,:,layer,time]),@view(d.fields[:pres][:,:,time]),d.layers[layer])
     end
-    a = d.fields[field]
-    field == :mslp ? a[:, :, time] : a[:, :, layer, time]
+    a=d.fields[field]
+    field in (:mslp,:pres) ? a[:,:,time] : a[:,:,layer,time]
 end
 
-function color_limits(d, field, layer, time; locked=true)
-    # Fixed across recorded times for the current field and layer.
-    values = if !locked
-        frame(d, field, layer, time)
+"Finite extrema without allocating a filtered array; nothing means all values are missing."
+function finite_extrema(values)
+    lo=Inf32;hi=-Inf32
+    for x in values
+        if isfinite(x);lo=min(lo,x);hi=max(hi,x);end
+    end
+    lo==Inf32 ? nothing : (lo,hi)
+end
+function finite_extrema(values::AbstractArray)
+    lo=Inf32;hi=-Inf32
+    @inbounds @simd for i in eachindex(values)
+        x=values[i]
+        lo=min(lo,ifelse(isfinite(x),x,Inf32))
+        hi=max(hi,ifelse(isfinite(x),x,-Inf32))
+    end
+    lo==Inf32 ? nothing : (lo,hi)
+end
+# Function barriers retain concrete array ranks outside WeatherData's heterogeneous
+# dictionary, so spatial-plane scans use contiguous indexing without boxing views.
+function frame_extrema(values_at,times)
+    lo=Inf32;hi=-Inf32
+    for time in times
+        bounds=finite_extrema(values_at(time))
+        bounds===nothing && continue
+        lo=min(lo,bounds[1]);hi=max(hi,bounds[2])
+    end
+    lo==Inf32 ? nothing : (lo,hi)
+end
+function raw_extrema(a,layer,times)
+    frame_extrema(times) do t
+        ndims(a)==3 ? @view(a[:,:,t]) : @view(a[:,:,layer,t])
+    end
+end
+function wind_extrema(u,v,layer,times)
+    frame_extrema(times) do t
+        (hypot(a,b) for (a,b) in zip(@view(u[:,:,layer,t]),@view(v[:,:,layer,t])))
+    end
+end
+function humidity_extrema(temp,q,p,sigma,layer,times)
+    frame_extrema(times) do t
+        (relative_humidity(a,b,c,sigma) for (a,b,c) in zip(@view(temp[:,:,layer,t]),@view(q[:,:,layer,t]),@view(p[:,:,t])))
+    end
+end
+function color_limits(d,field,layer,time;locked=true)
+    checkbounds(d.layers,layer);checkbounds(d.times,time)
+    times=locked ? eachindex(d.times) : (time:time)
+    bounds=if field==:wind
+        wind_extrema(d.fields[:u],d.fields[:v],layer,times)
     elseif field==:rh
-        cat((frame(d,:rh,layer,t) for t in eachindex(d.times))...;dims=3)
-    elseif field == :wind
-        hypot.(d.fields[:u][:, :, layer, :], d.fields[:v][:, :, layer, :])
-    elseif field == :mslp
-        d.fields[field]
+        haskey(d.fields,:pres) && 0<d.layers[layer]<=1 || return (0f0,1f0)
+        humidity_extrema(d.fields[:temp],d.fields[:humid],d.fields[:pres],d.layers[layer],layer,times)
     else
-        d.fields[field][:, :, layer, :]
+        raw_extrema(d.fields[field],layer,times)
     end
-    valid = filter(isfinite, vec(values))
-    isempty(valid) && return (0f0, 1f0)
-    lo, hi = extrema(valid)
-    if field in (:u, :v)
-        bound = max(abs(lo), abs(hi), 1f-3)
-        return (-bound, bound)
+    bounds===nothing && return (0f0,1f0)
+    lo,hi=bounds
+    if field in (:u,:v)
+        bound=max(abs(lo),abs(hi),1f-3)
+        return (-bound,bound)
     end
-    lo == hi ? (lo - 0.5f0, hi + 0.5f0) : (lo, hi)
+    lo==hi ? (lo-0.5f0,hi+0.5f0) : (lo,hi)
 end
 
-function nearest_cell(d, lon, lat)
-    x = mod(lon + 180, 360) - 180
-    dx = abs.(d.lon .- x)
-    (argmin(min.(dx, 360 .- dx)), argmin(abs.(d.lat .- clamp(lat, -90, 90))))
+function nearest_cell(d,lon,lat)
+    x=mod(lon+180,360)-180;y=clamp(lat,-90,90)
+    ix=iy=1;dx=dy=Inf
+    for i in eachindex(d.lon)
+        delta=abs(d.lon[i]-x);distance=min(delta,360-delta)
+        if distance<dx;ix=i;dx=distance;end
+    end
+    for j in eachindex(d.lat)
+        distance=abs(d.lat[j]-y)
+        if distance<dy;iy=j;dy=distance;end
+    end
+    (ix,iy)
 end
-sample_value(d, field, layer, time, lon, lat) = frame(d, field, layer, time)[nearest_cell(d, lon, lat)...]
+function sample_value(d,field,layer,time,lon,lat)
+    checkbounds(d.layers,layer);checkbounds(d.times,time)
+    i,j=nearest_cell(d,lon,lat)
+    field==:wind && return hypot(d.fields[:u][i,j,layer,time],d.fields[:v][i,j,layer,time])
+    if field==:rh
+        haskey(d.fields,:pres) && 0<d.layers[layer]<=1 || return NaN32
+        return relative_humidity(d.fields[:temp][i,j,layer,time],d.fields[:humid][i,j,layer,time],d.fields[:pres][i,j,time],d.layers[layer])
+    end
+    field in (:mslp,:pres) ? d.fields[field][i,j,time] : d.fields[field][i,j,layer,time]
+end
 layer_label(d, k) = "Tầng $k / $(length(d.layers)) · σ = $(round(d.layers[k]; digits=4))"
 
 function append_weather(a::WeatherData, b::WeatherData)
     (a.lon == b.lon && a.lat == b.lat && a.layers == b.layers) || error("Lưới phiên mô phỏng đã thay đổi.")
+    Set(keys(a.fields))==Set(keys(b.fields)) || error("Các trường trong đoạn mô phỏng đã thay đổi.")
     b.times[1] == a.times[end] || error("Các đoạn mô phỏng không nối tiếp nhau.")
     length(b.times) > 1 || error("Đoạn mô phỏng không có thời gian mới.")
     fields = Dict{Symbol,Array{Float32}}()

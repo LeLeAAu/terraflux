@@ -1,5 +1,7 @@
 module TerraFluxLive
 using TOML
+include("process_control.jl")
+using .TerraFluxProcessControl
 include("thermal_patch.jl")
 using .TerraFluxThermalPatch
 include("vortex_profiles.jl")
@@ -49,7 +51,7 @@ function spawn_session(config,root)
     worker = joinpath(@__DIR__,"live_worker.jl")
     cmd = `$(Base.julia_cmd()) --startup-file=no --threads=2 --project=$project $worker $directory`
     process = open(joinpath(directory,"worker.log"),"w") do io
-        run(pipeline(addenv(Cmd(cmd;dir=directory),"OPENBLAS_NUM_THREADS"=>"1"),stdout=io,stderr=io);wait=false)
+        run(pipeline(addenv(Cmd(cmd;dir=directory),"OPENBLAS_NUM_THREADS"=>"1"),stdin=devnull,stdout=io,stderr=io);wait=false)
     end
     LiveSession(directory,process,0)
 end
@@ -62,10 +64,11 @@ function send_command!(session::LiveSession, action::String;patch=nothing)
         status["state"]=="paused" && get(status,"sequence",0)==session.sequence || error("Lưu/can thiệp chỉ dùng khi đã tạm dừng và xử lý xong lệnh trước.")
     end
     spec=action=="thermal" ? thermal_spec(;patch...) : action=="vortex" ? vortex_spec(;patch...) : nothing
-    session.sequence += 1
-    command = Dict{String,Any}("sequence"=>session.sequence,"action"=>action)
+    sequence=session.sequence+1
+    command = Dict{String,Any}("sequence"=>sequence,"action"=>action)
     spec===nothing || (command["patch"]=Dict(string(k)=>v for (k,v) in pairs(spec)))
-    atomic_toml(joinpath(session.directory,"commands",lpad(string(session.sequence),6,'0')*".toml"),command)
+    atomic_toml(joinpath(session.directory,"commands",lpad(string(sequence),6,'0')*".toml"),command)
+    session.sequence=sequence
 end
 
 "Apply queued edits in order; an explicit stop cancels work not yet started."
@@ -102,14 +105,12 @@ end
 
 function stop_session!(session::LiveSession; timeout=3.0)
     if process_running(session.process)
-        send_command!(session,"stop")
-        if timedwait(() -> process_exited(session.process),timeout;pollint=0.05) == :timed_out
-            kill(session.process)
-            if timedwait(()->process_exited(session.process),2.;pollint=0.05)==:timed_out
-                kill(session.process,Base.SIGKILL)
-            end
+        sent=try
+            send_command!(session,"stop");true
+        catch
+            false # Missing/unwritable command folders must not leave a model running.
         end
-        wait(session.process)
+        stop_process!(session.process;grace=sent ? timeout : 0.)
     end
     nothing
 end

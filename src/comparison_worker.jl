@@ -5,7 +5,18 @@ using .TerraFluxLive.TerraFluxSavedSessions
 function worker(directory)
     file=joinpath(directory,"comparison.toml");m=TOML.parsefile(file)
     publish()=atomic_toml(file,m)
-    cancelled()=isfile(joinpath(directory,"STOP"))
+    stop_requested=Ref(false)
+    if get(m,"stop_via_stdin",false)
+        @async try
+            for line in eachline(stdin)
+                line=="STOP" && break
+            end
+        finally
+            # STOP or EOF works even when metadata is no longer writable.
+            stop_requested[]=true
+        end
+    end
+    cancelled()=stop_requested[] || isfile(joinpath(directory,"STOP"))
     child=nothing
     function await_child(session,predicate)
         while true
@@ -86,6 +97,7 @@ function worker(directory)
         end
     finally
         child===nothing || stop_session!(child;timeout=0.3)
+        get(m,"stop_via_stdin",false) && close(stdin)
     end
 end
 worker(abspath(only(ARGS)))

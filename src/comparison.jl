@@ -11,6 +11,12 @@ export ComparisonJob,start_comparison,comparison_status,stop_comparison!,load_co
 struct ComparisonJob
     directory::String
     process::Base.Process
+    stop_input::Union{Nothing,IO}
+end
+ComparisonJob(directory,process)=ComparisonJob(directory,process,nothing)
+function close_stop_input(job)
+    job.stop_input===nothing && return
+    try;close(job.stop_input);catch;end
 end
 comparison_path(path)=isdir(path) ? joinpath(abspath(path),"comparison.toml") : abspath(path)
 function local_payload(root,name)
@@ -63,18 +69,25 @@ function start_comparison(path;patch=nothing,treatment=true,intervention="therma
         "truncation"=>meta["config"]["truncation"],"layers"=>meta["config"]["layers"],
         "source_manifest"=>source,"state_sha256"=>only(e["sha256"] for e in meta["payloads"] if e["path"]=="state.jld2"),
         "julia_version"=>string(VERSION),"speedyweather_version"=>speedy_version(),
-        "created_utc"=>string(now(UTC)),"state"=>"starting","phase"=>"loading",
+        "created_utc"=>string(now(UTC)),"state"=>"starting","phase"=>"loading","stop_via_stdin"=>true,
         "error"=>"","outputs_a"=>Any[],"outputs_b"=>Any[],"archive_a"=>"","archive_b"=>"")
     spec===nothing || (config["patch"]=Dict(string(k)=>v for (k,v) in pairs(spec)))
     atomic_toml(joinpath(directory,"comparison.toml"),config)
     project=abspath(joinpath(@__DIR__,".."))
     cmd=`$(Base.julia_cmd()) --startup-file=no --threads=2 --project=$project $(joinpath(@__DIR__,"comparison_worker.jl")) $directory`
-    process=open(joinpath(directory,"worker.log"),"w") do io
-        run(pipeline(addenv(Cmd(cmd;dir=directory),"OPENBLAS_NUM_THREADS"=>"1"),stdout=io,stderr=io);wait=false)
+    input=Pipe()
+    process=try
+        open(joinpath(directory,"worker.log"),"w") do io
+            run(pipeline(addenv(Cmd(cmd;dir=directory),"OPENBLAS_NUM_THREADS"=>"1"),stdin=input,stdout=io,stderr=io);wait=false)
+        end
+    catch
+        close(input);rethrow()
     end
-    ComparisonJob(directory,process)
+    close(input.out)
+    ComparisonJob(directory,process,input.in)
 end
 function comparison_status(job)
+    process_exited(job.process) && close_stop_input(job)
     m=try
         comparison_manifest(job.directory)
     catch err
@@ -88,26 +101,31 @@ function comparison_status(job)
 end
 function stop_comparison!(job;timeout=6.)
     if process_running(job.process)
-        write(joinpath(job.directory,"STOP"),"stop")
-        if timedwait(()->process_exited(job.process),timeout;pollint=0.05)==:timed_out
-            kill(job.process)
-            # Julia can stall while handling SIGTERM during native compilation.
-            if timedwait(()->process_exited(job.process),2.;pollint=0.05)==:timed_out
-                kill(job.process,Base.SIGKILL)
-            end
+        try;write(joinpath(job.directory,"STOP"),"stop");catch;end
+        if job.stop_input!==nothing
+            try;println(job.stop_input,"STOP");flush(job.stop_input);catch;end
         end
-        wait(job.process)
+        close_stop_input(job)
+        # Give the coordinator time to stop/reap its child, including cold Julia
+        # compilation and the child's TERM -> KILL fallback. Killing it earlier
+        # can orphan the model even if the caller requested a shorter timeout.
+        TerraFluxLive.TerraFluxProcessControl.stop_process!(job.process;grace=max(timeout,6.))
     end
+    close_stop_input(job)
     m=try;comparison_manifest(job.directory);catch;return nothing;end
     if !(m["state"] in ("complete","error","stopped"))
         m["state"]="stopped";m["phase"]="stopped"
-        atomic_toml(joinpath(job.directory,"comparison.toml"),m)
+        try;atomic_toml(joinpath(job.directory,"comparison.toml"),m);catch;end
     end
 end
-function load_comparison(path;verify=true)
+function load_comparison(path;verify=true,previous=nothing)
     file=comparison_path(path);root=dirname(file);m=comparison_manifest(file)
     n=min(length(m["outputs_a"]),length(m["outputs_b"]))
     n>0 || error("Chưa có mốc mới chung cho A và B.")
+    oldn=previous===nothing ? 0 : length(previous.times)
+    reuse=previous!==nothing && previous.path==file && oldn<=n &&
+        previous.meta["fork_time"]==m["fork_time"] && previous.meta["layers"]==m["layers"] &&
+        all(previous.meta["outputs_"*side][1:oldn]==m["outputs_"*side][1:oldn] for side in ("a","b"))
     data=WeatherData[]
     for side in ("a","b")
         paths=String[]
@@ -117,7 +135,15 @@ function load_comparison(path;verify=true)
             verify && payload_entry(root,e["path"])["sha256"]!=e["sha256"] && error("Checksum đầu ra A/B không khớp.")
             push!(paths,target)
         end
-        d=load_live_history(paths)
+        d=if reuse
+            history=side=="a" ? previous.a : previous.b
+            for target in paths[oldn+1:end]
+                history=append_weather(history,load_live_chunk(target))
+            end
+            history
+        else
+            load_live_history(paths)
+        end
         d.times[1]==DateTime(m["fork_time"]) || error("Mốc xuất phát A/B không khớp.")
         length(d.layers)==m["layers"] || error("Số tầng kết quả A/B không khớp.")
         push!(data,d)

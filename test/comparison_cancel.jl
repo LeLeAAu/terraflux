@@ -38,3 +38,30 @@ baseline=abspath(first(ARGS));root=mktempdir(;prefix="TerraFlux AB cancel ")
         stop_comparison!(bad)
     end
 end
+
+@testset "Cancellation pipe works when a STOP file cannot be created" begin
+    for eof_only in (false,true)
+        job=start_comparison(baseline;treatment=false,steps=1,root)
+        try
+            @test timedwait(120;pollint=0.05) do
+                m=comparison_status(job)
+                m["state"]=="error" && error(m["error"])
+                haskey(m,"child_pid")
+            end == :ok
+            pid=comparison_status(job)["child_pid"]
+            if eof_only
+                close(job.stop_input) # Simulate the owning UI disappearing.
+                @test timedwait(()->process_exited(job.process),30.;pollint=0.05)==:ok
+                wait(job.process)
+            else
+                mkdir(joinpath(job.directory,"STOP")) # EISDIR for write(), not a stop marker.
+                stop_comparison!(job)
+            end
+            @test process_exited(job.process)
+            @test comparison_status(job)["state"]=="stopped"
+            Sys.islinux() && @test !ispath("/proc/$pid")
+        finally
+            stop_comparison!(job)
+        end
+    end
+end

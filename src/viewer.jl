@@ -372,11 +372,13 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
             "Bản đồ 2D • Cuộn: thu phóng • Chuột phải: di chuyển • Bấm trái: đọc giá trị"
         refresh()
     end
+    limitcache=Dict{Tuple{Symbol,Int,Bool},Tuple{Float32,Float32}}()
+    palettecache=Dict{Symbol,Vector{RGBAf}}()
     function refresh_point()
         cell = selected[]
         if cell !== nothing
             i, j = cell
-            value = display_frame(d,field[],layer[],time[])[i,j]
+            value = mapvalues[][i,j]
             val = isfinite(value) ? @sprintf("%.3f", value) : "Thiếu dữ liệu"
             pointtext[] = @sprintf("Ô lưới: %.2f° / %.2f°\n%s %s", d.lon[i], d.lat[j], val, display_unit(field[]))
         end
@@ -387,16 +389,24 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         mapvalues[] = vcat(a, a[1:1, :])
         vertexcolors[] = globe_colors(a)
         smoothcolors[]=smooth_globe_colors(a,smoothgeometry)
-        cmap[] = weather_palette(weatherstyle,f)
+        palette=get!(()->weather_palette(weatherstyle,f),palettecache,f)
+        cmap[]===palette || (cmap[]=palette)
         unittext[] = display_unit(f)
         if rescale || !lockscale.checked[]
-            limits[] = weather_limits(weatherstyle,d,f,k,t;standard=scalemenu.selection[]==:weather,locked=lockscale.checked[])
+            standard=scalemenu.selection[]==:weather
+            limits[]=if lockscale.checked[]
+                get!(limitcache,(f,k,standard)) do
+                    weather_limits(weatherstyle,d,f,k,t;standard,locked=true)
+                end
+            else
+                weather_limits(weatherstyle,d,f,k,t;standard,locked=false)
+            end
         end
         description = f == :mslp ? "Quy về mực biển · Không phụ thuộc tầng chọn" : layer_label(d, k)
         title[] = "$(field_label(f)) / $(display_unit(f))\n$description"
         clocktext[] = "$(Dates.format(d.times[t], dateformat"yyyy-mm-dd HH:MM"))   ·   Khung $t / $(length(d.times))"
-        finite = filter(isfinite, vec(a))
-        stattext[] = isempty(finite) ? (f==:rh && !haskey(d.fields,:pres) ? "Cần áp suất bề mặt để tính RH.\nTệp cũ chỉ có độ ẩm riêng." : f==:rh && t==1 ? "RH thiếu dữ liệu khởi tạo.\nThử khung tiếp theo (+6 giờ)." : f == :mslp && t == 1 ? "Áp suất mốc khởi tạo\nchưa được mô hình tính." : "Khung này thiếu dữ liệu.") : @sprintf("Toàn bản đồ / %s\nMin  %.3f\nMax  %.3f", display_unit(f), minimum(finite), maximum(finite))
+        bounds=finite_extrema(a)
+        stattext[] = bounds===nothing ? (f==:rh && !haskey(d.fields,:pres) ? "Cần áp suất bề mặt để tính RH.\nTệp cũ chỉ có độ ẩm riêng." : f==:rh && t==1 ? "RH thiếu dữ liệu khởi tạo.\nThử khung tiếp theo (+6 giờ)." : f == :mslp && t == 1 ? "Áp suất mốc khởi tạo\nchưa được mô hình tính." : "Khung này thiếu dữ liệu.") : @sprintf("Toàn bản đồ / %s\nMin  %.3f\nMax  %.3f", display_unit(f), bounds[1], bounds[2])
         contour_visible[]=viewmenu.selection[]==:map && f==:mslp && isobartoggle.checked[]
         contour_visible[] && (pressure_values[]=vcat(a,a[1:1,:]))
         ticks=get(Dict(:temp=>(-30:10:50),:wind=>(0:20:120),:rh=>(0:25:100),:mslp=>(970:15:1045)),f,Makie.automatic)
@@ -484,6 +494,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     function replace_data!(next)
         (next.lon == original.lon && next.lat == original.lat && next.layers == original.layers) ||
                 error("Phiên trực tiếp yêu cầu cùng lưới và tầng với dữ liệu đang mở.")
+        empty!(limitcache)
         d = next
         playing[] = false
         time[] = length(d.times)
@@ -548,7 +559,8 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
             persistence_operation[]=""
         end
         budget=haskey(status,"max_chunks") ? " / $(status["max_chunks"]*6)" : ""
-        livestatus[] = "$message · Đã tính $(status["completed"]*6)$budget giờ · $(basename(session[].directory))"
+        live_message="$message · Đã tính $(status["completed"]*6)$budget giờ · $(basename(session[].directory))"
+        livestatus[]==live_message || (livestatus[]=live_message)
         notice=!isempty(command_error) ? first(command_error,240) : pending ? "Đang xử lý lệnh…" :
             get(status,"pending_edit",false) ? "Đã áp dụng. Khung đã lưu vẫn là trước tác động; bấm +6 giờ để xem phản ứng.\n"*get(status,"edit_summary","") :
             isempty(get(status,"edit_summary","")) ? "Chọn cấu hình và xem trước.\nChỉ dùng ở mốc cuối của phiên live đã tạm dừng." : get(status,"edit_summary","")
