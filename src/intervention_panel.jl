@@ -52,7 +52,7 @@ function build_intervention_panel(cell,ax,globe,mode,opened,selected,layer;get_d
             ring[]=Point2f[];sphere_ring[]=Point3f[]
         end
     end
-    on(menu.selection) do k;on_layer(k);end
+    on(menu.selection) do k;k===nothing || on_layer(k);end
     on(layer) do k;menu.i_selected[]==k || (menu.i_selected[]=k);refresh!();end
     for obs in (selected,radius.displayed_string,delta.displayed_string)
         on(_->refresh!(),obs)

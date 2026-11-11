@@ -28,6 +28,7 @@ using .TerraFluxLive.TerraFluxSavedSessions
 using .TerraFluxGlobe
 using .TerraFluxData
 using GLMakie
+using CUDA
 using GeoMakie
 using Dates, Printf
 export build_viewer, launch
@@ -42,6 +43,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         icon_style_path=joinpath(@__DIR__,"..","assets","storm_tracker","style.toml"),
         weather_style_path=joinpath(@__DIR__,"..","assets","weather","style.toml"))
     weatherstyle=load_weather_style(weather_style_path)
+    replacing_data=Ref(false)
     default_truncation=(length(d.lon),length(d.lat))==(96,48) ? 32 : 0
     run_truncation=default_truncation
     if isfile(d.path)
@@ -189,12 +191,12 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     end
     points, faces = globe_geometry(d.lon, d.lat)
     vertexcolors = Observable(globe_colors(display_frame(d,:temp,layer[],time[])))
-    mesh!(globe, Point3f.(points), [Makie.GeometryBasics.TriangleFace(f...) for f in faces];
+    cellmesh=mesh!(globe, Point3f.(points), [Makie.GeometryBasics.TriangleFace(f...) for f in faces];
         color=vertexcolors, colormap=cmap, colorrange=limits, shading=NoShading,
         nan_color=:transparent,visible=lift(!,smooth.checked))
     smoothgeometry=smooth_globe_geometry(d.lon,d.lat;factor=length(d.lon)<=128 ? 3 : 2)
     smoothcolors=Observable(smooth_globe_colors(frame(d,:temp,layer[],time[]),smoothgeometry))
-    mesh!(globe,Point3f.(smoothgeometry.points),[Makie.GeometryBasics.TriangleFace(f...) for f in smoothgeometry.faces];
+    smoothmesh=mesh!(globe,Point3f.(smoothgeometry.points),[Makie.GeometryBasics.TriangleFace(f...) for f in smoothgeometry.faces];
         color=smoothcolors,colormap=cmap,colorrange=limits,shading=NoShading,nan_color=:transparent,visible=smooth.checked)
     coastpoints = Makie.convert_arguments(Lines, GeoMakie.coastlines())[1]
     lines!(globe, Point3f.(smooth_sphere_lines(coastpoints));
@@ -260,7 +262,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         end
     end
     livepanel = GridLayout(fig[3, 1:2])
-    livestatus = Observable("MÔ PHỎNG MỚI / T$run_truncation · $(length(d.layers)) tầng · chọn 10/30/60 ngày · mỗi bước 6 giờ")
+    livestatus = Observable("Chọn chất lượng bên dưới, rồi bấm Phiên mới · mỗi bước 6 giờ")
     Label(livepanel[1,1:8],livestatus;fontsize=12,color=ACCENT,halign=:left,tellwidth=false)
     sourcemenu = Menu(livepanel[2,1],options=[("Tệp đã mở",:file),("Phiên mô phỏng",:live)],default=1,width=170)
     durationmenu=Menu(livepanel[2,2],options=[("10 ngày",10),("30 ngày",30),("60 ngày",60)],default=3,width=110)
@@ -270,7 +272,19 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     stepmodel = Button(livepanel[2,6],label="+6 giờ",buttoncolor=PANEL,labelcolor=INK)
     stopmodel = Button(livepanel[2,7],label="Kết thúc",buttoncolor=PANEL,labelcolor=INK)
     Label(livepanel[2,8],"Độc lập với phát lại",fontsize=12,color=MUTED)
-    persistence=GridLayout(livepanel[3,1:8])
+    quality=GridLayout(livepanel[3,1:8])
+    Label(quality[1,1],"Chất lượng phiên mới",fontsize=12,color=MUTED)
+    quality_T=run_truncation in (21,32,63,85) ? run_truncation : 32
+    quality_layers=length(d.layers) in (8,16,24,32) ? length(d.layers) : 8
+    resolutionmenu=Menu(quality[1,2],options=[("T$n",n) for n in (21,32,63,85)],
+        default=findfirst(==(quality_T),(21,32,63,85)),width=110)
+    levelsmenu=Menu(quality[1,3],options=[("$n tầng",n) for n in (8,16,24,32)],
+        default=findfirst(==(quality_layers),(8,16,24,32)),width=110)
+    has_cuda=try;CUDA.functional();catch;false;end
+    backendmenu=Menu(quality[1,4],options=has_cuda ? [("CPU","cpu"),("NVIDIA CUDA","cuda")] : [("CPU","cpu")],default=1,width=155)
+    Label(quality[1,5],"Áp dụng khi bấm Phiên mới · T cao hơn tốn thêm bộ nhớ/phép tính",fontsize=11,color=MUTED,tellwidth=false)
+    active_quality=Ref{Any}(nothing)
+    persistence=GridLayout(livepanel[4,1:8])
     savesession=Button(persistence[1,1],label="Lưu phiên",buttoncolor=PANEL,labelcolor=INK)
     savedpath=Textbox(persistence[1,2],stored_string="",placeholder="Dán đường dẫn session.toml hoặc thư mục bản lưu",reset_on_defocus=false,tellwidth=false)
     opensession=Button(persistence[1,3],label="Mở phiên đã lưu",buttoncolor=PANEL,labelcolor=INK)
@@ -346,7 +360,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         layers.update!(d,mapvalues[],field[],layer[],d.times[time[]],set)
         layers.omitted[]>0 && (overlaystatus[]*="\nẨn $(layers.omitted[]) tâm: giới hạn 256 icon.")
     end
-    menus=(viewmenu,fieldmenu,layermenu,scalemenu,regionmenu,sourcemenu,durationmenu,overlaysource,
+    menus=(viewmenu,fieldmenu,layermenu,scalemenu,regionmenu,sourcemenu,durationmenu,resolutionmenu,levelsmenu,backendmenu,overlaysource,
         tracker.source_menu,tracker.systemmenu,tracker.unitmenu,tracker.filter_menu,tracker.region,intervention.menu)
     hover=build_hover(fig,ax,globe,tracker,viewmenu.selection,menus,layers,systemstoggle.checked;
         get_data=()->d,get_field=()->field[],get_layer=()->layer[],get_time=()->d.times[time[]],get_values=()->mapvalues[])
@@ -384,6 +398,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         end
     end
     function refresh(; rescale=true)
+        replacing_data[] && return
         f, k, t = field[], layer[], time[]
         a = display_frame(d,f,k,t)
         mapvalues[] = vcat(a, a[1:1, :])
@@ -427,6 +442,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         refresh()
     end
     on(layermenu.selection) do k
+        k===nothing && return
         layer[] = k
         refresh()
     end
@@ -492,18 +508,55 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     persistence_operation=Ref("")
     save_previous_path=Ref("")
     function replace_data!(next)
-        (next.lon == original.lon && next.lat == original.lat && next.layers == original.layers) ||
-                error("Phiên trực tiếp yêu cầu cùng lưới và tầng với dữ liệu đang mở.")
+        grid_changed=next.lon!=d.lon || next.lat!=d.lat
+        levels_changed=next.layers!=d.layers
+        location=selected[]===nothing ? nothing : (d.lon[selected[][1]],d.lat[selected[][2]])
+        k=levels_changed ? argmin(abs.(next.layers .- d.layers[layer[]])) : layer[]
+        if grid_changed || levels_changed
+            selected[]=nothing
+        end
         empty!(limitcache)
-        d = next
-        playing[] = false
-        time[] = length(d.times)
-        slider.range[] = 1:length(d.times)
-        set_close_to!(slider,length(d.times))
-        gridtext[] = "Lưới đầu ra: $(length(d.lon)) × $(length(d.lat))\n$(length(d.layers)) tầng · $(length(d.times)) thời điểm\nPhóng to không tăng độ phân giải."
-        sourceinfo[] = sourcemenu.selection[] == :live ? "PHÁT LẠI / phiên live · 2 khung/giây · $(basename(session[].directory))" :
-            "PHÁT LẠI / tệp đã mở · 2 khung/giây · $(basename(original.path))"
+        replacing_data[]=true
+        try
+            d=next
+            playing[]=false
+            if grid_changed
+                points,faces=globe_geometry(d.lon,d.lat)
+                smoothgeometry=smooth_globe_geometry(d.lon,d.lat;factor=length(d.lon)<=128 ? 3 : 2)
+                a=display_frame(d,field[],k,length(d.times))
+                mapvalues.val=vcat(a,a[1:1,:])
+                pressure_values.val=fill(NaN32,size(mapvalues[]))
+                vertexcolors.val=globe_colors(a)
+                smoothcolors.val=smooth_globe_colors(a,smoothgeometry)
+                # Submit geometry and its payload together: changing one input at a
+                # time can render a new matrix against the previous grid/mesh.
+                Makie.update!(heat;arg1=vcat(d.lon,d.lon[1]+360),arg2=d.lat,arg3=mapvalues[])
+                Makie.update!(isobars;arg1=vcat(d.lon,d.lon[1]+360),arg2=d.lat,arg3=pressure_values[])
+                Makie.update!(cellmesh;arg1=Point3f.(points),arg2=[Makie.GeometryBasics.TriangleFace(f...) for f in faces],color=vertexcolors[])
+                Makie.update!(smoothmesh;arg1=Point3f.(smoothgeometry.points),arg2=[Makie.GeometryBasics.TriangleFace(f...) for f in smoothgeometry.faces],color=smoothcolors[])
+            end
+            if levels_changed
+                options=[(layer_label(d,i),i) for i in eachindex(d.layers)]
+                layermenu.options[]=options
+                intervention.menu.options[]=options
+                layer[]=k
+                layermenu.i_selected[]=k
+                intervention.menu.i_selected[]=k
+            end
+            time[]=length(d.times)
+            slider.range[]=1:length(d.times)
+            set_close_to!(slider,length(d.times))
+            gridtext[]="Lưới đầu ra: $(length(d.lon)) × $(length(d.lat))\n$(length(d.layers)) tầng · $(length(d.times)) thời điểm\nPhóng to không tăng độ phân giải."
+            sourceinfo[]=sourcemenu.selection[]==:live && history[]!==nothing && d===history[] ? "PHÁT LẠI / phiên live · 2 khung/giây · $(basename(session[].directory))" :
+                "PHÁT LẠI / tệp đã mở · 2 khung/giây · $(basename(original.path))"
+        finally
+            replacing_data[]=false
+        end
+        if (grid_changed || levels_changed) && location!==nothing
+            selected[]=nearest_cell(d,location...)
+        end
         refresh()
+        intervention.refresh!();vortex.refresh!()
     end
     on(sourcemenu.selection) do source
         if source == :file
@@ -559,7 +612,8 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
             persistence_operation[]=""
         end
         budget=haskey(status,"max_chunks") ? " / $(status["max_chunks"]*6)" : ""
-        live_message="$message · Đã tính $(status["completed"]*6)$budget giờ · $(basename(session[].directory))"
+        quality_text=active_quality[]===nothing ? "" : " · T$(active_quality[].truncation) / $(active_quality[].layers) tầng / $(uppercase(active_quality[].backend))"
+        live_message="$message$quality_text · Đã tính $(status["completed"]*6)$budget giờ · $(basename(session[].directory))"
         livestatus[]==live_message || (livestatus[]=live_message)
         notice=!isempty(command_error) ? first(command_error,240) : pending ? "Đang xử lý lệnh…" :
             get(status,"pending_edit",false) ? "Đã áp dụng. Khung đã lưu vẫn là trước tác động; bấm +6 giờ để xem phản ứng.\n"*get(status,"edit_summary","") :
@@ -582,14 +636,15 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         try
             if session[] !== nothing && process_running(session[].process)
                 livestatus[] = "Phiên hiện tại còn hoạt động. Bấm Kết thúc trước khi tạo phiên mới."
-            elseif run_truncation==0
-                livestatus[] = "Thiếu metadata độ phân giải; tạo dữ liệu bằng Create_Simulation trước."
             else
-                session[] = start_session(;root=session_root,max_chunks=4durationmenu.selection[],truncation=run_truncation,layers=length(original.layers))
+                config=(truncation=resolutionmenu.selection[],layers=levelsmenu.selection[],backend=backendmenu.selection[])
+                session[] = start_session(;root=session_root,max_chunks=4durationmenu.selection[],config...)
+                active_quality[]=config
                 history[] = nothing
                 imported[] = 0
+                replace_data!(original)
                 last_saved_seen[]="";persistence_operation[]=""
-                persistence_notice[]="Phiên mới · Tạm dừng sau ít nhất +6 giờ để lưu."
+                persistence_notice[]=config.backend=="cuda" ? "Phiên CUDA · Lưu/khôi phục trạng thái chưa hỗ trợ; có thể xem lại NetCDF." : "Phiên mới · Tạm dừng sau ít nhất +6 giờ để lưu."
                 sourcemenu.i_selected[] = 2
                 poll_live!()
             end
@@ -634,9 +689,8 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
         path=strip(path)
         length(path)>=2 && startswith(path,'"') && endswith(path,'"') && (path=path[nextind(path,firstindex(path)):prevind(path,lastindex(path))])
         meta=saved_manifest(path;verify=false)
-        meta["config"]["truncation"]==run_truncation && meta["config"]["layers"]==length(original.layers) ||
-            error("Bản lưu khác lưới/tầng. Kéo session.toml vào Open_TerraFlux.bat để mở cửa sổ đúng lưới.")
         session[]=resume_session(path;root=session_root)
+        active_quality[]=(truncation=meta["config"]["truncation"],layers=meta["config"]["layers"],backend="cpu")
         history[]=nothing;imported[]=0;last_saved_seen[]=""
         persistence_operation[]="open";persistence_notice[]="Đang kiểm tra và khôi phục phiên đã lưu…"
         sourcemenu.i_selected[]=2
@@ -668,7 +722,7 @@ function build_viewer(d::WeatherData; session_root=joinpath(@__DIR__,"..","sessi
     (; fig, ax, globe, tracker, session, history, sourcemenu, newrun, runmodel, pausemodel, stepmodel, stopmodel,
         livestatus, poll_live!, replace_data!, savesession,savedpath,opensession,abexperiments,persistence_notice,open_saved!, viewmenu, resetview, vertexcolors, globe_marker, fieldmenu, layermenu, lockscale, slider, selected, field, layer, time,
         pointtext, mapvalues, limits, play, back, forward, playing,
-        weatherstyle,scalemenu,regionmenu,windtoggle,isobartoggle,smooth,isobars,contour_visible,durationmenu,
+        weatherstyle,scalemenu,regionmenu,windtoggle,isobartoggle,smooth,isobars,contour_visible,durationmenu,resolutionmenu,levelsmenu,backendmenu,active_quality,
         overlaybutton,overlay_open,overlaysource,systemstoggle,labelstoggle,valuestoggle,nighttoggle,gridtoggle,
         layers,poll_layers!,hover,smoothcolors,smoothgeometry,helpcaption,intervention,intervention_open,interventionbutton,
         particles,wind2d,wind3d,animate_wind!,heat,cmap,colorbar,stattext,vortex,vortexbutton,vortex_open)

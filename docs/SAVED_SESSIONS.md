@@ -18,9 +18,10 @@ xoáy lý tưởng hóa.
 5. Chờ **Đã khôi phục**, rồi bấm **+6 giờ** hoặc **Chạy** để tính tiếp.
    Thanh **Phát** chỉ xem lại dữ liệu và không tính thêm thời gian vật lý.
 
-Trong một cửa sổ, bản lưu phải có cùng T/số tầng với dữ liệu đang mở. Để mở
-bản lưu khác lưới/tầng, kéo `session.toml` lên **Open_TerraFlux.bat** để tạo
-cửa sổ đúng cấu hình. Linux/macOS:
+Có thể mở bản lưu CPU khác T/số tầng ngay trong cùng cửa sổ; khi lịch sử được
+nạp, viewer tự đổi lưới hiển thị và menu tầng. T/số tầng/thời lượng của bản lưu
+được giữ nguyên, không lấy từ menu cấu hình phiên mới. Cũng có thể kéo
+`session.toml` lên **Open_TerraFlux.bat**. Linux/macOS:
 
 ```sh
 ./open_terraflux.sh '/path/to/saved_abc/session.toml'
@@ -100,3 +101,7 @@ Kiểm tra GUI dùng thao tác chuột thật vào nút Lưu/Mở, đường d�
 ngoặc kép, dữ liệu trước tác động, tính tiếp, chuyển chế độ và báo lỗi đường
 dẫn. Các kiểm tra chạy trên Linux/OpenGL phần mềm; launcher Windows chưa được
 chạy trực tiếp trong cloud này.
+
+Phiên CUDA không được đóng gói thành bản lưu CPU: thao tác Lưu sẽ báo chưa
+hỗ trợ. Các tệp NetCDF của phiên CUDA vẫn dùng để phát lại, không phải checkpoint
+khôi phục mô hình.

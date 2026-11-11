@@ -128,7 +128,7 @@ hỗ trợ CUDA nhưng project chưa tích hợp/kiểm chứng backend GPU.
 
 Dải **MÔ PHỎNG MỚI** nằm ngay phía trên phần phát lại:
 
-1. Chọn thời lượng **10/30/60 ngày**, rồi bấm **Phiên mới** để khởi tạo thí nghiệm từ điều kiện mặc định SpeedyWeather, cùng T/số tầng của tệp đang mở (bộ mẫu: T32/8 tầng). Thời lượng áp dụng khi tạo phiên; đây là phiên độc lập, không tiếp tục từ khung đang xem.
+1. Chọn thời lượng **10/30/60 ngày** và **Chất lượng phiên mới**: T21/T32/T63/T85, 8/16/24/32 tầng, CPU hoặc NVIDIA CUDA nếu máy có CUDA khả dụng. Bấm **Phiên mới** để khởi tạo từ điều kiện mặc định SpeedyWeather. Các lựa chọn chỉ áp dụng lúc tạo phiên; không tiếp tục từ khung đang xem hay đổi lưới của phiên đang chạy.
 2. Chờ trạng thái **Đã tạm dừng**, rồi bấm **+6 giờ** để tính một bước, hoặc **Chạy** để tính liên tiếp.
 3. **Tạm dừng** yêu cầu dừng sau mốc 6 giờ đang tính. Trong lúc chờ, giao diện báo lệnh chưa xử lý; nó không hủy nửa chừng một bước.
 4. **Kết thúc** đóng phiên sau mốc đang tính. Sau đó có thể tạo phiên khác.
@@ -136,7 +136,8 @@ Dải **MÔ PHỎNG MỚI** nằm ngay phía trên phần phát lại:
 Các nút này điều khiển **phép tính vật lý**. Nút **Phát/Dừng** và thanh thời gian bên dưới chỉ phát lại dữ liệu đã ghi. Mốc mới tự xuất hiện trên bản đồ/địa cầu sau mỗi 6 giờ tính xong; khi xem nguồn phiên đang chạy, giao diện theo mốc mới nhất. Có thể tạm dừng để xem lại các mốc cũ. Menu nguồn cho phép trở về **Tệp đã mở** trong khi phiên tiếp tục tính.
 
 - Bước tính đầu tiên của mỗi tiến trình phiên mới có thể mất vài phút để Julia biên dịch. Cửa sổ vẫn xoay bản đồ/địa cầu và xem dữ liệu đã có được trong thời gian này. Phiên mới có thể cần Internet để SpeedyWeather tải dữ liệu điều kiện biên.
-- Mỗi phiên có giới hạn **10/30/60 ngày** theo lựa chọn khi tạo; giữ cùng lưới/tầng của tệp mở. Tệp do bộ tạo phiên xuất có metadata T để tạo live phù hợp; tệp ngoài thiếu metadata có thể không dùng được dải live.
+- Mỗi phiên giữ cố định thời lượng/T/số tầng/backend lúc tạo. Menu mặc định gợi ý T/số tầng từ tệp mở nếu có metadata phù hợp; bạn có thể chọn khác. Khi đổi nguồn tệp/live, viewer cập nhật cả lưới 2D/3D và menu tầng. Tệp ngoài thiếu metadata vẫn cho chọn cấu hình phiên mới.
+- CUDA chỉ hiện khi phần cứng/driver khả dụng; mặc định CPU. Lưu/khôi phục trạng thái phiên hiện hỗ trợ CPU; phiên CUDA vẫn xuất NetCDF để xem lại.
 - SpeedyWeather chưa tính chẩn đoán nhiệt độ sát bề mặt cần cho **áp suất quy mực biển ở mốc khởi tạo**. Giao diện phiên mới ghi rõ trường này thiếu dữ liệu tại mốc 0, không thay bằng giá trị giả. Các trường trạng thái và mọi đầu ra tại mốc đã tính từ 6 giờ trở đi đều được kiểm tra hữu hạn; phát hiện mất ổn định sẽ dừng và báo lỗi.
 - Phiên lưu ở `sessions/session_…/`: cấu hình `config.toml`, nhật ký lệnh `commands/`, trạng thái `status.toml`, lỗi/tiến trình `worker.log`, và các thư mục `run_…` chứa NetCDF cùng `restart.jld2`. `sessions/` không được đưa vào Git. NetCDF thô của đoạn đầu vẫn chứa chẩn đoán áp suất khởi tạo chưa hợp lệ; dùng các mốc từ 6 giờ để phân tích áp suất.
 - Khi đóng cửa sổ, ứng dụng yêu cầu tiến trình mô phỏng kết thúc; nếu nó còn bận sau 3 giây thì dừng tiến trình đó. Những đoạn đã hoàn tất được giữ lại; đoạn đang tính có thể chưa hoàn chỉnh. Giao diện chỉ nạp các tệp đã đóng và vượt qua kiểm tra. Muốn tính tiếp lần sau, dùng **Lưu phiên** trước khi kết thúc (hướng dẫn bên dưới).

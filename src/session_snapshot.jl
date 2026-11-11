@@ -6,6 +6,7 @@ using ..TerraFluxData
 export save_session_bundle, restore_session_bundle!
 
 function save_session_bundle(sim,directory,config,files;pending_edit,undo_file,undo_previous_pending,edit_summary,sequence)
+    get(config,"backend","cpu")=="cpu" || error("Lưu/khôi phục phiên CUDA chưa được hỗ trợ; dùng CPU để lưu phiên hoặc giữ các tệp NetCDF để xem lại.")
     !isempty(files) || error("Tính ít nhất +6 giờ trước khi lưu phiên.")
     rng=copy(Random.default_rng());staging=""
     try

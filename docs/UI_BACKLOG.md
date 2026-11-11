@@ -368,3 +368,11 @@ năng lượng/giai đoạn spin-up của mô hình.
 Giữ miền công thức xoáy (áp suất tham chiếu dương, A×k<1, không cắt xích đạo),
 độ phân giải/sai số chiếu phổ, trạng thái hữu hạn T>0 K và ps>0, checkpoint/
 rollback. Chi tiết trong THERMAL_EXPERIMENTS.md và IDEALIZED_VORTEX.md.
+
+## Chọn chất lượng cho phiên live ngay trong viewer
+
+Đã thêm T21/T32/T63/T85, 8/16/24/32 tầng và CPU/CUDA khi khả dụng. Cấu hình
+được chốt lúc tạo phiên; viewer chuyển lưới 2D/3D, tầng và điểm ghim khi đổi
+nguồn. Mở bản lưu CPU khác lưới ngay trong cùng cửa sổ. Chặn ghi nhãn bản lưu
+CUDA thành CPU; chỉ lưu trạng thái CPU được hỗ trợ. Tham chiếu kiểm tra:
+`test/quality_viewer.jl` và `test/quality_live_viewer.jl`.

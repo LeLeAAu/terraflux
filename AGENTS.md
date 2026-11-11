@@ -70,8 +70,9 @@ original-cell sampling, missing values, dateline closure and polar behavior.
 T21/32/63/85, 8/16/24/32 layers, cadence/CPU threads/seed. See
 `docs/LOCAL_SIMULATION.md`. Batch jobs use fresh ignored session folders and
 only advertise fully validated output; live uses matching grid metadata.
-Physics still runs CPU. OpenGL rendering and upstream CUDA capabilities must
-not be described as verified project GPU compute; see `docs/GPU_STATUS.md`.
+Model creation has CPU/CUDA paths; see `docs/GPU_STATUS.md` for recorded GPU
+evidence. Do not describe OpenGL rendering as model GPU compute, or CPU-only
+cloud checks as verification on NVIDIA hardware.
 
 
 Batch progress is emitted by `src/model_progress.jl` after completed model
@@ -175,3 +176,14 @@ vortex domain A*k<1 with 0<Δp_ref<1000 hPa and a footprint not crossing the
 equator. Thermal support radius is at most pi*6371 km. Keep native resolution
 and projected-wind L2 gates, worker rollback, and both leapfrog checks intact.
 Positive temperature alone does not establish model validity at extreme states.
+
+Viewer live quality menus select T/layers/backend for a new session only. Freeze
+that config; never regrid a running model or reinterpret a saved snapshot using
+next-session menu values. Switching file/live sources may change the displayed
+grid: update plot geometry and values atomically, layer menus, caches and pin
+sampling. Saved-session restoration remains CPU only; never label CUDA state as
+CPU. Night shading has its own display mesh, independent of the physics grid.
+
+User workflow preference: after completing requested repository changes and
+appropriate validation, commit and push them to origin/main without asking
+again. Report the resulting commit and any push failure.

@@ -80,9 +80,10 @@ MSLP/áp suất bề mặt tại mốc khởi tạo vẫn được đánh dấu 
 không thay bằng số giả. Kiểm tra từng khung temp/u/v/humid hữu hạn, áp suất
 hữu hạn sau khởi tạo, đồng hồ/số khung chính xác và trạng thái cuối T>0 K.
 
-Dải live trong viewer vẫn chọn 10/30/60 ngày, mỗi bước 6 giờ, tạo phiên mới
-từ điều kiện mặc định. Khi mở kết quả form có metadata, live kế thừa T/số tầng
-để giữ cùng lưới; **không tiếp tục trạng thái cuối của thí nghiệm batch**.
+Dải live trong viewer chọn 10/30/60 ngày, mỗi bước 6 giờ, tạo phiên mới
+từ điều kiện mặc định. Hàng **Chất lượng phiên mới** chọn T21/T32/T63/T85,
+8/16/24/32 tầng và CPU/CUDA (CUDA chỉ hiện khi khả dụng). Mặc định T/số tầng
+được gợi ý theo tệp mở, có thể đổi trước khi bấm Phiên mới; **không tiếp tục trạng thái cuối của thí nghiệm batch**.
 Phiên live có chức năng **Lưu phiên / Mở phiên đã lưu** riêng để tính tiếp
 sau khi đóng viewer; xem [SAVED_SESSIONS.md](SAVED_SESSIONS.md).
 
@@ -123,3 +124,25 @@ julia --project=. test/setup_launch.jl
 `setup_logging.jl` kiểm tra logger không che mất lỗi gốc và dùng handle có sẵn;
 khi chạy trên Windows, bài kiểm tra dùng chuyển hướng thực của `cmd` để kiểm
 tra trường hợp file log đang được launcher giữ mở.
+
+## Đổi chất lượng ngay trong viewer
+
+Chọn T và số tầng dưới dải điều khiển, rồi bấm **Phiên mới**. Nếu đang có phiên
+hoạt động, bấm **Kết thúc** và chờ dừng trước. Thay đổi menu không làm đổi phiên
+đang chạy, bản lưu hay dữ liệu đã ghi. Khi chuyển nguồn về tệp gốc rồi trở lại
+live khác lưới, viewer cập nhật bản đồ, địa cầu, menu tầng và lấy mẫu cùng dữ liệu.
+Điểm ghim được giữ theo tọa độ gần nhất, tầng chọn chuyển theo sigma gần nhất;
+không giữ chỉ số ô/tầng của lưới cũ.
+
+T cao hơn tăng độ phân giải vật lý và chi phí tính/bộ nhớ; không bảo đảm giải
+được xoáy R=100 km. Các cổng kiểm tra ô native và sai số chiếu phổ của công cụ
+xoáy vẫn áp dụng. Lưu/khôi phục phiên hiện chỉ hỗ trợ CPU; CUDA dùng NetCDF
+để xem lại. Kiểm tra: `test/quality_viewer.jl`, `test/quality_live_viewer.jl`.
+
+Kiểm chứng thay đổi trên CPU/Xvfb: `quality_viewer.jl` đạt 33/33 kiểm tra
+(chuyển lưới hiển thị tương ứng T32/T63/T85, đổi số tầng/sigma, pin, 2D/3D,
+khởi tạo cấu hình T85). `quality_live_viewer.jl` đạt 19/19 với mô hình thật
+T63/16 tầng: xuất 6 giờ, đổi nguồn, lưu/mở lại từ viewer T32 và tính tiếp
+đến 12 giờ. `viewer_smoke.jl` hoàn tất thành công. Không coi kiểm tra lưới
+hiển thị T85 hay cấu hình tạo phiên là benchmark tích phân T85; chưa kiểm
+chứng thao tác CUDA trên máy cloud không có NVIDIA.
