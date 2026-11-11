@@ -23,7 +23,14 @@ include(joinpath(@__DIR__,"..","src","vortex_profiles.jl"));using .TerraFluxVort
     @test vortex_at(179.,30.,1.,s).u==0
     @test vortex_column(3e6,0.9,s).delta_logps==0
     @test reference_profile(s).max_wind_mps>0
-    for bad in ((lat=0.,),(radius_km=100.,),(pressure_drop_hpa=0.,),(depth=10.,),(lat=10.,radius_km=2500.))
+    for expanded in ((lat=5.,radius_km=100.,),(lat=65.,radius_km=5000.,),(pressure_drop_hpa=150.,),(pressure_drop_hpa=1.,depth=10.,),(depth=0.,))
+        e=vortex_spec(;merge(s,expanded)...)
+        @test all(isfinite,values(reference_profile(e)))
+        @test vortex_column(0.,1.,e).delta_tv>=0
+    end
+    for bad in ((lat=0.,),(lat=91.,),(radius_km=0.,),(pressure_drop_hpa=0.,),
+            (pressure_drop_hpa=1000.,),(pressure_drop_hpa=500.,depth=2.,),(depth=-1.,),
+            (depth=Inf,),(pressure_drop_hpa=true,),(lat=10.,radius_km=2500.))
         @test_throws ErrorException vortex_spec(;merge(s,bad)...)
     end
 end

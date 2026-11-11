@@ -22,8 +22,8 @@ thấp/gió/lõi ấm toàn cột ([IDEALIZED_VORTEX.md](IDEALIZED_VORTEX.md)).
    Có thể kéo `session.toml` lên file `.bat` để điền sẵn đường dẫn.
 3. Dán đường dẫn `session.toml` hoặc thư mục bản lưu. Chọn **1–40 bước × 6 giờ**,
    trong giới hạn thời lượng còn lại của bản lưu. Mặc định 4 bước = 1 ngày.
-4. Bật checkbox tác động, chọn **B: nhiệt một tầng**, nhập kinh/vĩ độ, R, tầng và ΔT. R 1000–5000 km;
-   ΔT khác 0 trong −5…+5 K; tầng phải có trong bản lưu. Hoặc bỏ chọn để cho cả
+4. Bật checkbox tác động, chọn **B: nhiệt một tầng**, nhập kinh/vĩ độ, R, tầng và ΔT. R dương, không vượt π×6371 km;
+   ΔT hữu hạn khác 0, trạng thái sau chèn phải có T>0 K; tầng phải có trong bản lưu. Hoặc bỏ chọn để cho cả
    hai nhánh tiến triển mà không chèn tác động mới.
 5. Bấm **Tạo và chạy A/B**. Worker kiểm tra/sao chép bản lưu rồi tính **A trước,
    B sau**, mỗi đoạn 6 giờ. Giao diện báo giai đoạn và số bước thật của từng nhánh.

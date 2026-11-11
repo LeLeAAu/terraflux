@@ -2,11 +2,15 @@ module TerraFluxVortexProfiles
 export vortex_spec,vortex_column,vortex_at,reference_profile
 const EARTH_RADIUS=6371000.
 function vortex_spec(;lon,lat,radius_km,pressure_drop_hpa,depth=0.75)
-    all(x->x isa Real && !(x isa Bool) && isfinite(x),(lon,lat,radius_km,pressure_drop_hpa,depth)) || error("Thông số xoáy phải là số hữu hạn.")
-    -180<=lon<=180 && 10<=abs(lat)<=40 || error("Tâm xoáy: kinh độ −180…180°, |vĩ độ| 10…40°.")
-    800<=radius_km<=3000 || error("Bán kính ngoài của xoáy: 800–3000 km.")
-    radius_km*1000<=0.8EARTH_RADIUS*deg2rad(abs(lat)) || error("Vùng xoáy quá gần/đi qua xích đạo; giảm R hoặc dịch tâm ra xa.")
-    5<=pressure_drop_hpa<=25 && 0.5<=depth<=1.5 || error("Trũng áp tham chiếu 5–25 hPa; độ giảm theo cao k = 0.5–1.5.")
+    all(x->x isa Real && !(x isa Bool) && isfinite(x) && isfinite(Float64(x)),(lon,lat,radius_km,pressure_drop_hpa,depth)) || error("Thông số xoáy phải là số hữu hạn.")
+    lon,lat,radius_km,pressure_drop_hpa,depth=Float64.((lon,lat,radius_km,pressure_drop_hpa,depth))
+    -180<=lon<=180 && 0<abs(lat)<=90 || error("Tâm xoáy: kinh độ −180…180°, vĩ độ trong [−90,90]°, khác xích đạo.")
+    radius_km>0 || error("Bán kính ngoài của xoáy phải >0.")
+    radius_km*1000<EARTH_RADIUS*deg2rad(abs(lat)) || error("Vùng xoáy quá gần/đi qua xích đạo; giảm R hoặc dịch tâm ra xa.")
+    0<pressure_drop_hpa<1000 || error("Trũng áp tham chiếu phải >0 và <1000 hPa để áp suất tham chiếu còn dương.")
+    depth>=0 || error("Độ giảm theo cao k phải ≥0 (k=0: không suy giảm theo cao).")
+    A=-log1p(-Float64(pressure_drop_hpa)/1000)
+    A*depth<1 || error("Cần k × [−ln(1−Δp/1000)] < 1 để nhiệt độ ảo dương và công thức không suy biến.")
     (;lon=Float64(lon),lat=Float64(lat),radius_km=Float64(radius_km),pressure_drop_hpa=Float64(pressure_drop_hpa),depth=Float64(depth))
 end
 
@@ -45,6 +49,7 @@ end
 function reference_profile(spec)
     s=vortex_spec(;spec...)
     columns=[vortex_column(r,1.,s) for r in range(0,1000s.radius_km;length=201)]
+    all(c->all(isfinite,values(c)),columns) || error("Mẫu xoáy vượt khả năng biểu diễn số.")
     (;max_wind_mps=maximum(abs(c.u_theta) for c in columns),max_delta_tv=first(columns).delta_tv)
 end
 end

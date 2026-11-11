@@ -26,12 +26,12 @@ nhất, dù đó là nhiệt một tầng hay xoáy, không phải tua ngược 
 
 | Đầu vào | Phạm vi / ý nghĩa |
 | --- | --- |
-| Tâm | Kinh độ −180…180°, \|vĩ độ\| 10…40°; quay thuận theo bán cầu |
-| R | 800–3000 km, bán kính ngoài danh nghĩa; không phải R34/bán kính mắt bão |
-| Trũng áp tham chiếu | 5–25 hPa trên nền tham chiếu 1000 hPa; không phải MSLP tâm đặt trước |
-| k | 0.5–1.5; k lớn làm gió suy giảm nhanh hơn theo cao, đồng thời tăng phần ấm gần đáy |
+| Tâm | Kinh độ −180…180°, vĩ độ trong [−90,90]°, khác xích đạo; quay thuận theo bán cầu |
+| R | R>0, bán kính ngoài danh nghĩa; không phải R34/bán kính mắt bão |
+| Trũng áp tham chiếu | 0<Δp_ref<1000 hPa trên nền tham chiếu 1000 hPa; không phải MSLP tâm đặt trước |
+| k | k≥0 và k×[−ln(1−Δp_ref/1000)]<1; k lớn làm gió suy giảm nhanh hơn theo cao, đồng thời tăng phần ấm gần đáy |
 
-R còn phải nhỏ hơn 80% khoảng cách tâm tới xích đạo và đủ lớn so với lưới
+R còn phải nhỏ hơn khoảng cách cung cầu từ tâm tới xích đạo và đủ lớn so với lưới
 native. Không tự cắt R/Δp để chấp nhận một đầu vào sai. Vùng nhỏ trên T21/T32
 có thể bị từ chối; zoom/mượt ảnh không giải quyết được thiếu độ phân giải.
 
@@ -93,7 +93,8 @@ Kiểm tra trước/sau gồm:
   diện tích native trung bình trong vùng đó.
 - Tái dựng gió từ nhiễu xoáy đã chiếu; sai số L2 tương đối có trọng số diện
   tích so với gió mẫu phải ≤0.35. Nếu không đạt, từ chối và hoàn tác.
-- Hai bộ đệm hữu hạn, T trong 100–400 K, ps trong 100–1200 hPa.
+- Hai bộ đệm hữu hạn, **T>0 K** và **ps>0 Pa**; không còn trần thử nghiệm
+  100–400 K hoặc 100–1200 hPa. Các ngân sách ghi nhật ký phải hữu hạn.
 - Khôi phục checkpoint nếu áp dụng/ghi hậu trạng thái thất bại. Khi tính tiếp,
   các kiểm tra hữu hạn/mất ổn định của live vẫn được giữ.
 
@@ -141,3 +142,26 @@ julia --threads=2 --project=. test/vortex_model.jl /path/to/new-T63-directory - 
 # Dùng session.toml sạch được bài kiểm tra in ra, cần màn hình/OpenGL:
 julia --threads=2 --project=. test/vortex_viewer.jl /path/to/session.toml
 ```
+
+## Nhập thông số ngoài khoảng thử nghiệm cũ
+
+Không còn giới hạn cứng R 800–3000 km, trũng áp 5–25 hPa, k 0.5–1.5 hoặc
+|vĩ độ| 10–40°. k được nhập trực tiếp thay cho menu ba giá trị cố định, dùng
+cùng quy tắc với A/B. Các trường hợp vẫn bị từ chối gồm số không hữu hạn,
+áp suất tham chiếu không dương, k<0, mẫu có A×k≥1 hoặc vùng cắt xích đạo.
+Điều kiện A×k<1 giữ mẫu tham chiếu đơn điệu và nhiệt độ ảo dương ở mọi sigma.
+Xích đạo bị loại vì mẫu f-plane này dùng chiều xoáy theo bán cầu; đây không
+phải khẳng định mọi nhiễu động thực tế ở xích đạo đều không thể tồn tại.
+
+Các cổng kiểm tra độ phân giải native và sai số gió L2 vẫn giữ nguyên. Đầu vào
+qua kiểm tra không có nghĩa là mô hình đã được kiểm định cho trạng thái cực đoan;
+đối lưu/bức xạ và bước thời gian vẫn có thể mất ổn định khi tính tiếp. Không
+clamp đầu vào hay thay đổi vật lý nền để ép một trường hợp được chấp nhận.
+
+k=0 là mẫu không suy giảm theo cao, có δTv=0 trong khí quyển tham chiếu.
+
+Kiểm chứng trên CPU: vortex_profiles 90/90, vortex_model 18/18 và
+vortex_viewer 21/21 (Xvfb). intervention_limits_live kiểm tra chèn trũng áp
+50 hPa, hoàn tác và rollback sau lệnh nhiệt lỗi. Preview và ô nhập k nhận số,
+widget ẩn không nhận phím. Chưa kiểm chứng CUDA hoặc độ ổn định dài hạn của
+các cấu hình cực đoan.

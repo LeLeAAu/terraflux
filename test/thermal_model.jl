@@ -26,5 +26,18 @@ using .TerraFluxThermalPatch,.TerraFluxThermalModel
         end
         @test s.variables.prognostic.clock.time==before.prognostic.clock.time
         @test rand(copy(Random.default_rng()))==next_random
+        # Values outside the former ±5 K / 100–400 K envelope are allowed
+        # when the reconstructed state remains finite and strictly positive.
+        for delta in (250.,-250.)
+            apply_thermal!(s,thermal_spec(;merge(p,(delta_k=delta,))...))
+            t=Array(SpeedyWeather.transform(SpeedyWeather.get_step(s.variables.prognostic.temperature,1),m.spectral_transform))
+            @test minimum(t)>0 && all(isfinite,t)
+            @test delta>0 ? maximum(t)>400 : minimum(t)<100
+            restore_checkpoint!(s,file)
+        end
+        @test_throws ErrorException apply_thermal!(s,thermal_spec(;merge(p,(delta_k=-1e6,))...))
+        restore_checkpoint!(s,file)
+        @test s.variables.prognostic.temperature==before.prognostic.temperature
+        @test rand(copy(Random.default_rng()))==next_random
     end
 end

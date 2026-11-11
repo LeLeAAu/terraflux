@@ -8,8 +8,13 @@ using .TerraFluxThermalPatch
     @test patch_weight(0,-20,s)==0
     @test patch_weight(179,25,s)>patch_weight(179,30,s)>patch_weight(179,40,s)
     @test_throws Exception thermal_spec(;merge(s,(delta_k=0,))...)
-    @test_throws Exception thermal_spec(;merge(s,(delta_k=6,))...)
-    @test_throws Exception thermal_spec(;merge(s,(radius_km=500,))...)
+    @test thermal_spec(;merge(s,(delta_k=200,))...).delta_k==200
+    @test thermal_spec(;merge(s,(delta_k=-200,))...).delta_k== -200
+    @test thermal_spec(;merge(s,(radius_km=500,layer=64))...).layer==64
+    @test thermal_spec(;merge(s,(radius_km=10000,))...).radius_km==10000
+    for bad in ((radius_km=0,),(radius_km=-1,),(radius_km=21000,),(delta_k=Inf,),(delta_k=true,),(layer=true,))
+        @test_throws Exception thermal_spec(;merge(s,bad)...)
+    end
     @test_throws Exception thermal_spec(;merge(s,(lon=NaN,))...)
     @test_throws Exception thermal_spec(;merge(s,(layer=2.5,))...)
 end

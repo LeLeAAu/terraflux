@@ -29,7 +29,7 @@ function build_comparison_viewer(;path="",root=joinpath(@__DIR__,"..","sessions"
     controls=GridLayout(form[3,1:8])
     inputs=Dict{Symbol,Any}()
     for (i,(key,label,value)) in enumerate(((:lon,"Kinh độ","130"),(:lat,"Vĩ độ","20"),
-            (:radius_km,"R ngoài (km)","2500"),(:layer,"Tầng tác động","8"),(:delta_k,"ΔT (−5…+5 K)","2")))
+            (:radius_km,"R ngoài (km)","2500"),(:layer,"Tầng tác động","8"),(:delta_k,"ΔT (K, khác 0)","2")))
         Label(controls[1,2i-1],label,fontsize=12)
         inputs[key]=Textbox(controls[1,2i],stored_string=value,width=85,reset_on_defocus=false)
     end
@@ -38,7 +38,7 @@ function build_comparison_viewer(;path="",root=joinpath(@__DIR__,"..","sessions"
     inputs[:pressure_drop_hpa]=Textbox(extra[1,2],stored_string="15",width=80,reset_on_defocus=false)
     Label(extra[1,3],"Giảm theo cao k",fontsize=12)
     inputs[:depth]=Textbox(extra[1,4],stored_string="0.75",width=80,reset_on_defocus=false)
-    Label(extra[1,5],"Nhiệt: R 1000–5000, tầng, ΔT · Xoáy: R 800–3000, trũng áp, k.",fontsize=11)
+    Label(extra[1,5],"Nhiệt: T >0 K sau chèn · Xoáy: 0<Δp<1000, k≥0; mẫu không suy biến.",fontsize=11)
     vortex_defaults_used=Ref(false)
     on(kind.selection) do choice
         if choice=="vortex" && !vortex_defaults_used[]

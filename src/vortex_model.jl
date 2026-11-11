@@ -6,7 +6,7 @@ function apply_vortex!(sim,input)
     spec=vortex_spec(;input...);vars=sim.variables;model=sim.model;g=model.geometry;S=model.spectral_transform
     vars.prognostic.clock.time_step_counter>0 && vars.prognostic.scale[]==1 || error("Tính ít nhất +6 giờ và tạm dừng trước khi tạo xoáy.")
     radius=Float64(model.planet.radius)
-    1000spec.radius_km<=0.8radius*deg2rad(abs(spec.lat)) || error("Vùng xoáy đi qua xích đạo.")
+    1000spec.radius_km<radius*deg2rad(abs(spec.lat)) || error("Vùng xoáy đi qua xích đạo.")
     native=get_step(vars.grid.temperature,1).grid
     areas=zeros(length(g.londs))
     for (ring,omega) in zip(SpeedyWeather.RingGrids.eachring(native),SpeedyWeather.RingGrids.get_solid_angles(native))
@@ -51,8 +51,8 @@ function apply_vortex!(sim,input)
     for step in 1:2
         t=Array(SpeedyWeather.transform(get_step(vars.prognostic.temperature,step),S))
         p=exp.(Array(SpeedyWeather.transform(get_step(vars.prognostic.pressure,step),S)))
-        all(isfinite,t) && minimum(t)>=100 && maximum(t)<=400 || error("Nhiệt độ sau tạo xoáy ngoài 100–400 K.")
-        all(isfinite,p) && minimum(p)>10000 && maximum(p)<120000 || error("Áp suất bề mặt sau tạo xoáy không hợp lệ.")
+        all(isfinite,t) && minimum(t)>0 || error("Nhiệt độ sau tạo xoáy phải hữu hạn và >0 K.")
+        all(isfinite,p) && minimum(p)>0 || error("Áp suất bề mặt sau tạo xoáy không hợp lệ.")
         all(isfinite,get_step(vars.prognostic.vorticity,step)) && all(isfinite,get_step(vars.prognostic.divergence,step)) || error("Trường xoáy/phân kỳ không hữu hạn.")
     end
     p1=exp.(vec(Array(SpeedyWeather.transform(get_step(vars.prognostic.pressure,1),S))))
@@ -62,6 +62,7 @@ function apply_vortex!(sim,input)
     mass=sum(areas.*(p1.-p0))/grav
     water=sum(areas.*(p1.-p0).*column(q0))/grav
     enthalpy=Float64(model.atmosphere.heat_capacity)/grav*sum(areas.*(p1.*column(T1).-p0.*column(T0)))
+    all(isfinite,(mass,water,enthalpy)) || error("Ngân sách sau tạo xoáy vượt khả năng biểu diễn số.")
     (;projected_pressure_min_hpa=minimum(p1.-p0)/100,projected_pressure_max_hpa=maximum(p1.-p0)/100,
         projected_delta_t_min_k=minimum(T1.-T0),projected_delta_t_max_k=maximum(T1.-T0),
         air_mass_change_kg=mass,column_water_mass_change_kg=water,dry_enthalpy_change_j=enthalpy,

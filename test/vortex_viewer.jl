@@ -29,9 +29,12 @@ try
         click(v.vortex.suggested)
         @test v.selected[]!==nothing && !isempty(v.vortex.ring[])
         @test occursin("Tham chiếu",v.vortex.summary[])
-        click(v.vortex.depth);@test v.vortex.depth.is_open[]
+        click(v.vortex.depth);@test v.vortex.depth.focused[]
         v.viewmenu.i_selected[]=3
-        @test !v.vortex.depth.is_open[] && !v.vortex.depth.blockscene.visible[]
+        @test !v.vortex.depth.blockscene.visible[]
+        hidden_depth=v.vortex.depth.displayed_string[]
+        events(v.fig).unicode_input[]='9'
+        @test v.vortex.depth.displayed_string[]==hidden_depth
         v.viewmenu.i_selected[]=2;click(v.vortexbutton)
         @test v.vortex_open[] && v.globe.scene.visible[]
         click(v.interventionbutton)
@@ -39,7 +42,7 @@ try
         v.viewmenu.i_selected[]=1;click(v.vortexbutton)
         ready=await_state(s->s["state"]=="paused")
         before=deepcopy(v.history[].fields);count=v.session[].sequence
-        v.vortex.radius.displayed_string[]="500";click(v.vortex.apply)
+        v.vortex.radius.displayed_string[]="0";click(v.vortex.apply)
         @test v.session[].sequence==count
         v.vortex.radius.displayed_string[]="3000"
         click(v.vortex.apply);applied=await_state(ack)

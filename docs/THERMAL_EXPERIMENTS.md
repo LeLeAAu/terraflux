@@ -6,8 +6,8 @@ trong Bản đồ 2D/Địa cầu 3D và dùng cùng tầng, điểm ghim và ph
 1. Bấm **Phiên mới**, chờ khởi tạo rồi bấm **+6 giờ**. Chờ **Đã tạm dừng**.
 2. Chọn nguồn **Phiên mô phỏng** và mốc cuối đã lưu. Bấm bản đồ hoặc địa cầu
    để chọn tâm vùng. Tệp đã mở chỉ dùng xem, không bị sửa.
-3. Bấm **Can thiệp nhiệt**. Chọn tầng sigma, bán kính 1000–5000 km và
-   ΔT tại tâm từ −5 đến +5 K, khác 0. Chênh lệch 1 K bằng chênh lệch 1 °C.
+3. Bấm **Can thiệp nhiệt**. Chọn tầng sigma, bán kính dương (tối đa π×6371 km) và
+   ΔT tại tâm hữu hạn, khác 0; không còn trần ±5 K. Chênh lệch 1 K bằng chênh lệch 1 °C.
 4. Bật **Xem trước phạm vi** để kiểm tra vòng trên bản đồ/địa cầu, rồi bấm
    **Áp dụng một lần**. Worker lưu checkpoint trước/sau và ghi nhật ký.
 5. Bấm **Hoàn tác trước bước mới** để trở lại trạng thái trước tác động gần
@@ -72,10 +72,15 @@ năng lượng ẩm đầy đủ hay bằng chứng cân bằng tổng năng lư
 
 ## Kiểm tra và hồ sơ
 
-Giới hạn ban đầu: R 1000–5000 km, |ΔT| ≤5 K, ít nhất bốn ô native có trọng số
->0.001, nhiệt độ tái dựng hai bộ đệm hữu hạn trong 100–400 K. Không âm thầm
-cắt/clamp một đầu vào sai thành hợp lệ. Các giới hạn này là phạm vi thử nghiệm,
-không bảo đảm mọi trạng thái/độ phân giải đều ổn định hoặc mô tả chính xác bão.
+Đầu vào không còn trần thử nghiệm R 1000–5000 km hay |ΔT|≤5 K. R phải dương
+và không vượt khoảng cách cung cầu lớn nhất π×6371 km; tầng là số nguyên dương
+có trong mô hình. Các số phải hữu hạn và biểu diễn được bằng kiểu số đang dùng.
+Giữ điều kiện ít nhất bốn ô native có trọng số >0.001; vùng không được lưới giải
+đủ vẫn bị từ chối. Sau chiếu, cả hai bộ đệm phải có nhiệt độ hữu hạn và **T>0 K**;
+không còn chặn ở 100–400 K. Nhiệt lượng ghi vào nhật ký cũng phải hữu hạn.
+Không clamp một đầu vào sai thành hợp lệ. T>0 K là điều kiện cần, không phải
+bằng chứng nhiệt động lực học thực tế hoặc ổn định khi tính tiếp; mô hình vẫn
+dừng/báo lỗi nếu mất ổn định. Worker khôi phục checkpoint khi thao tác thất bại.
 
 Mỗi thao tác có thư mục `sessions/session_…/edits/00000N/`:
 
@@ -104,3 +109,11 @@ julia --threads=2 --project=. test/intervention_viewer.jl
 Mẫu xoáy áp thấp/gió/lõi ấm đã được bổ sung riêng trong
 [IDEALIZED_VORTEX.md](IDEALIZED_VORTEX.md). Can thiệp hơi nước/gió tự do, áp
 dụng tăng dần/duy trì và biểu đồ vùng A/B vẫn còn chờ.
+
+Kiểm tra mở rộng đầu vào và rollback worker: `test/intervention_limits_live.jl`.
+
+Kiểm chứng mở rộng trên CPU: thermal_patch 17/17, thermal_model 22/22,
+intervention_limits_live 16/16 và intervention_viewer 25/25. Đã thử ΔT ±250 K,
+chấp nhận trạng thái dưới 100 K / trên 400 K khi vẫn dương; ΔT −10⁶ K bị từ
+chối và worker khôi phục đúng prognostic/clock/RNG. Chưa xác nhận CUDA cho
+các thí nghiệm mở rộng này.

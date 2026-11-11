@@ -15,10 +15,9 @@ function build_vortex_panel(cell,ax,globe,mode,opened,selected;get_data,on_apply
         g=GridLayout(layout[row,1]);add(Label(g[1,1],label,fontsize=12,halign=:left))
         add(Textbox(g[1,2],stored_string=value,reset_on_defocus=false,width=100))
     end
-    radius=input(5,"R ngoài (800–3000 km)","3000")
-    pressure=input(6,"Trũng áp ref (5–25 hPa)","15")
-    g=GridLayout(layout[7,1]);add(Label(g[1,1],"Giảm theo cao k",fontsize=12))
-    depth=add(Menu(g[1,2],options=[("Sâu · 0.5",0.5),("Vừa · 0.75",0.75),("Nông · 1.5",1.5)],default=2,width=135))
+    radius=input(5,"R ngoài (km, >0)","3000")
+    pressure=input(6,"Trũng áp ref (hPa)","15")
+    depth=input(7,"Giảm theo cao k (≥0)","0.75")
     g2=GridLayout(layout[8,1]);preview=add(Checkbox(g2[1,1],checked=true));add(Label(g2[1,2],"Xem trước phạm vi",fontsize=12))
     summary=Observable("");add(Label(layout[9,1],summary,fontsize=11,tellwidth=false,word_wrap=true,halign=:left,color="#a6b7c8"))
     apply=add(Button(layout[10,1],label="Chèn xoáy một lần",buttoncolor="#213044",labelcolor=:white))
@@ -34,7 +33,7 @@ function build_vortex_panel(cell,ax,globe,mode,opened,selected;get_data,on_apply
         selected[]===nothing && error("Bấm bản đồ/địa cầu hoặc chọn tâm gợi ý trước.")
         d=get_data();i,j=selected[]
         vortex_spec(lon=d.lon[i],lat=d.lat[j],radius_km=parse(Float64,radius.displayed_string[]),
-            pressure_drop_hpa=parse(Float64,pressure.displayed_string[]),depth=depth.selection[])
+            pressure_drop_hpa=parse(Float64,pressure.displayed_string[]),depth=parse(Float64,depth.displayed_string[]))
     end
     function refresh!()
         if selected[]===nothing
@@ -58,7 +57,7 @@ function build_vortex_panel(cell,ax,globe,mode,opened,selected;get_data,on_apply
         Makie.set!(radius,fine ? "1700" : "3000")
         selected[]=nearest_cell(get_data(),130,fine ? 20 : 35)
     end
-    for obs in (selected,radius.displayed_string,pressure.displayed_string,depth.selection);on(_->refresh!(),obs);end
+    for obs in (selected,radius.displayed_string,pressure.displayed_string,depth.displayed_string);on(_->refresh!(),obs);end
     on(apply.clicks) do _;try;on_apply(spec());catch err;message[]=first(sprint(showerror,err),240);end;end
     on(undo.clicks) do _;try;on_undo();catch err;message[]=first(sprint(showerror,err),240);end;end
     refresh!()

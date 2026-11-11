@@ -168,3 +168,10 @@ upstream output writers (CPU/CUDA). Mask by nonzero land/ocean fraction; mixed
 coastal cells may have both components. Never substitute air temperature or a
 drawn coastline for missing surface data. See docs/WEATHER_MAPS.md and
 test/surface_temperatures.jl.
+
+Intervention inputs no longer use the former experimental ΔT/Δp/R/k caps.
+Validate finite representable inputs, positive reconstructed T and ps, and the
+vortex domain A*k<1 with 0<Δp_ref<1000 hPa and a footprint not crossing the
+equator. Thermal support radius is at most pi*6371 km. Keep native resolution
+and projected-wind L2 gates, worker rollback, and both leapfrog checks intact.
+Positive temperature alone does not establish model validity at extreme states.

@@ -54,7 +54,7 @@ function apply_thermal!(sim,spec)
     all(isfinite,delta) || error("Nhiễu nhiệt sau chiếu phổ không hữu hạn.")
     for step in 1:2
         t=Array(SpeedyWeather.transform(get_step(vars.prognostic.temperature,step),model.spectral_transform))
-        all(isfinite,t) && minimum(t)>=100 && maximum(t)<=400 || error("Nhiệt độ sau tác động ngoài khoảng thử nghiệm 100–400 K.")
+        all(isfinite,t) && minimum(t)>0 || error("Nhiệt độ sau tác động phải hữu hạn và >0 K ở cả hai bộ đệm.")
     end
     native=get_step(vars.grid.temperature,1).grid
     areas=zeros(length(weights))
@@ -64,6 +64,7 @@ function apply_thermal!(sim,spec)
     ps=exp.(vec(Array(SpeedyWeather.transform(get_step(vars.prognostic.pressure,1),model.spectral_transform))))
     thickness=Float64(g.σ_levels_half[spec.layer+1]-g.σ_levels_half[spec.layer])
     heat=Float64(model.atmosphere.heat_capacity)/Float64(model.planet.gravity)*thickness*sum(areas.*ps.*delta[:,spec.layer])
+    isfinite(heat) || error("Nhiệt lượng sau tác động vượt khả năng biểu diễn số.")
     (;requested_delta_k=spec.delta_k,projected_min_k=Float64(minimum(delta)),projected_max_k=Float64(maximum(delta)),
         native_cells=count(>(0.001),weights),sigma,heat_dry_approx_j=heat,
         global_layer_mean_delta_k=sum(areas.*delta[:,spec.layer])/sum(areas))

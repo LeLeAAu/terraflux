@@ -361,3 +361,10 @@ không phụ thuộc tầng khí quyển. Tệp cũ báo thiếu thay vì lấy 
 làm nhiệt bề mặt. Chi tiết: `WEATHER_MAPS.md`, kiểm tra:
 `test/surface_temperatures.jl`, `test/surface_viewer.jl`. Việc này chưa chẩn đoán hay thay đổi cân bằng
 năng lượng/giai đoạn spin-up của mô hình.
+
+## Bỏ trần thử nghiệm cho can thiệp nhiệt và khởi tạo xoáy
+
+Đã bỏ trần nhập ΔT/Δp/R/k cũ, chuyển k thành ô nhập số và đồng bộ A/B.
+Giữ miền công thức xoáy (áp suất tham chiếu dương, A×k<1, không cắt xích đạo),
+độ phân giải/sai số chiếu phổ, trạng thái hữu hạn T>0 K và ps>0, checkpoint/
+rollback. Chi tiết trong THERMAL_EXPERIMENTS.md và IDEALIZED_VORTEX.md.
