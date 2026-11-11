@@ -24,10 +24,12 @@ function atomic_toml(path, data)
     mv(temporary,path;force=true)
 end
 
-function start_session(; root=joinpath(@__DIR__,"..","sessions"), max_chunks=40,truncation=32,layers=8)
+function start_session(; root=joinpath(@__DIR__,"..","sessions"), max_chunks=40,truncation=32,layers=8,backend="cpu")
     max_chunks isa Integer && 1<=max_chunks<=1460 || throw(ArgumentError("Số bước phải là số nguyên 1–1460."))
     truncation in (21,32,63,85) && layers in (8,16,24,32) || throw(ArgumentError("Cấu hình lưới/tầng không hỗ trợ."))
+    backend in ("cpu","cuda") || throw(ArgumentError("Backend hỗ trợ: cpu hoặc cuda."))
     config=Dict("truncation"=>truncation,"layers"=>layers,"chunk_hours"=>6,"max_chunks"=>max_chunks,
+        "backend"=>backend,
         "model"=>"PrimitiveWetModel","initial_mslp"=>"unavailable_before_surface_diagnostics",
         "julia_version"=>string(VERSION),"created_at"=>string(time()))
     spawn_session(config,root)

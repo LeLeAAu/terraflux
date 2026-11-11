@@ -1,5 +1,5 @@
 # Separate Julia process: compute never blocks the GLMakie event loop.
-using SpeedyWeather, Dates, TOML
+using SpeedyWeather, Dates, TOML, CUDA
 using SpeedyWeather: SurfacePressureOutput
 include("live.jl")
 using .TerraFluxLive: atomic_toml
@@ -31,7 +31,14 @@ function worker(directory)
         cd(directory)
         publish("starting")
         haskey(config,"resume_from") && TerraFluxLive.TerraFluxSavedSessions.saved_manifest(config["resume_from"])
-        grid = SpectralGrid(truncation=config["truncation"],nlayers=config["layers"])
+        backend = get(config, "backend", "cpu")
+        arch = if backend == "cuda"
+            CUDA.functional() || error("CUDA không khả dụng hoặc driver NVIDIA chưa tương thích.")
+            SpeedyWeather.GPU()
+        else
+            SpeedyWeather.CPU()
+        end
+        grid = SpectralGrid(truncation=config["truncation"],nlayers=config["layers"],architecture=arch)
         model = PrimitiveWetModel(grid)
         add!(model,SurfacePressureOutput())
         simulation = initialize!(model)

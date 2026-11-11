@@ -1,6 +1,6 @@
 using Pkg
 "--setup" in ARGS && Pkg.instantiate()
-using GLMakie,TOML,Printf,Dates
+using GLMakie,TOML,Printf,Dates,CUDA
 include("src/batch.jl")
 using .TerraFluxBatch,.TerraFluxBatch.TerraFluxExperimentConfig
 include("src/local_open.jl")
@@ -8,9 +8,9 @@ using .TerraFluxLocalOpen
 
 function build_simulation_setup(;root=joinpath(@__DIR__,"sessions","generated"),open_path=open_local_path)
     set_theme!(theme_dark();fontsize=15,textcolor="#e8eef5")
-    fig=Figure(size=(850,730),backgroundcolor="#101722")
+    fig=Figure(size=(850,780),backgroundcolor="#101722")
     Label(fig[1,1:2],"TERRAFLUX / TẠO MÔ PHỎNG",fontsize=25,color="#66ded0",font=:bold)
-    Label(fig[2,1:2],"Chọn thời lượng và độ phân giải vật lý. Phép tính chạy CPU trong tiến trình riêng.",fontsize=13)
+    Label(fig[2,1:2],"Chọn thời lượng và độ phân giải vật lý. Phép tính chạy trong tiến trình riêng.",fontsize=13)
     Label(fig[3,1],"Số ngày (1–365)",halign=:left)
     days=Textbox(fig[3,2],stored_string="60",reset_on_defocus=false,width=360)
     Label(fig[4,1],"Độ phân giải ngang",halign=:left)
@@ -21,33 +21,46 @@ function build_simulation_setup(;root=joinpath(@__DIR__,"sessions","generated"),
     interval=Menu(fig[6,2],options=[("$n giờ",n) for n in (1,3,6,12,24)],default=3,width=360)
     Label(fig[7,1],"Luồng CPU",halign=:left)
     threads=Menu(fig[7,2],options=[("$n luồng",n) for n in (1,2,4,8)],default=2,width=360)
-    Label(fig[8,1],"Seed",halign=:left)
-    seed=Textbox(fig[8,2],stored_string="20261107",reset_on_defocus=false,width=360)
-    Label(fig[9,1],"Thư mục lưu",halign=:left)
-    destination=Textbox(fig[9,2],stored_string=abspath(root),reset_on_defocus=false,width=360)
+
+    has_cuda = try
+        CUDA.functional()
+    catch
+        false
+    end
+    gpu_label = has_cuda ? "NVIDIA CUDA ($(CUDA.name(CUDA.device())))" : "NVIDIA CUDA (Không khả dụng)"
+    backend_options = has_cuda ? [(gpu_label, "cuda"), ("CPU đa luồng", "cpu")] : [("CPU đa luồng", "cpu")]
+    Label(fig[8,1],"Bộ tính toán mô hình",halign=:left)
+    backend=Menu(fig[8,2],options=backend_options,default=1,width=360)
+
+    Label(fig[9,1],"Seed",halign=:left)
+    seed=Textbox(fig[9,2],stored_string="20261107",reset_on_defocus=false,width=360)
+    Label(fig[10,1],"Thư mục lưu",halign=:left)
+    destination=Textbox(fig[10,2],stored_string=abspath(root),reset_on_defocus=false,width=360)
     estimate=Observable("")
-    Label(fig[10,1:2],estimate,fontsize=13,color="#a6b7c8",tellwidth=false)
-    buttons=GridLayout(fig[11,1:2])
+    Label(fig[11,1:2],estimate,fontsize=13,color="#a6b7c8",tellwidth=false)
+    buttons=GridLayout(fig[12,1:2])
     runbutton=Button(buttons[1,1],label="Tạo và chạy",buttoncolor="#213044",labelcolor="#e8eef5")
     stop=Button(buttons[1,2],label="Dừng",buttoncolor="#213044",labelcolor="#e8eef5")
     openlog=Button(buttons[1,3],label="Mở nhật ký",buttoncolor="#213044",labelcolor="#e8eef5")
     openresult=Button(buttons[1,4],label="Mở kết quả",buttoncolor="#213044",labelcolor="#e8eef5")
     status=Observable("Sẵn sàng. Mỗi lần tạo dùng thư mục mới, có cấu hình và nhật ký.")
-    Label(fig[12,1:2],status,fontsize=13,tellwidth=false,justification=:left,word_wrap=true)
+    Label(fig[13,1:2],status,fontsize=13,tellwidth=false,justification=:left,word_wrap=true)
     job=Ref{Union{Nothing,BatchJob}}(nothing)
     function config()
         experiment_config(days=parse(Int,days.displayed_string[]),truncation=resolution.selection[],layers=levels.selection[],
-            output_hours=interval.selection[],threads=threads.selection[],seed=parse(Int,seed.displayed_string[]))
+            output_hours=interval.selection[],threads=threads.selection[],seed=parse(Int,seed.displayed_string[]),
+            backend=backend.selection[])
     end
     function update_estimate!()
         try
             c=config();e=estimate_experiment(c)
-            estimate[]=@sprintf("%d khung · tệp ~%.0f MiB · RAM dữ liệu ~%.0f MiB (+ RAM ứng dụng)\nTăng T/số tầng làm tăng phép tính; chu kỳ ghi chỉ đổi lượng đầu ra.\nGPU dựng hình qua OpenGL; tính mô hình hiện dùng CPU.",e.frames,e.disk_mib,e.viewer_ram_mib)
+            backend_note = c.backend == "cuda" ? "Tính mô hình trên GPU CUDA (SpeedyWeather GPU)." : "Tính mô hình trên CPU $(c.threads) luồng."
+            estimate[]=@sprintf("%d khung · tệp ~%.0f MiB · RAM dữ liệu ~%.0f MiB (+ RAM ứng dụng)\nTăng T/số tầng làm tăng phép tính; chu kỳ ghi chỉ đổi lượng đầu ra.\n%s Dựng hình qua GLMakie (OpenGL).",e.frames,e.disk_mib,e.viewer_ram_mib,backend_note)
         catch err
             estimate[]="Kiểm tra số ngày/seed: "*first(sprint(showerror,err),120)
         end
     end
-    for value in (days.displayed_string,seed.displayed_string,resolution.selection,levels.selection,interval.selection,threads.selection)
+    for value in (days.displayed_string,seed.displayed_string,resolution.selection,levels.selection,interval.selection,threads.selection,backend.selection)
         on(_->update_estimate!(),value)
     end
     on(runbutton.clicks) do _
@@ -126,7 +139,7 @@ function build_simulation_setup(;root=joinpath(@__DIR__,"sessions","generated"),
         end
     end
     update_estimate!()
-    (;fig,days,resolution,levels,interval,threads,seed,destination,estimate,runbutton,stop,openlog,openresult,status,job,poll!,config)
+    (;fig,days,resolution,levels,interval,threads,backend,seed,destination,estimate,runbutton,stop,openlog,openresult,status,job,poll!,config)
 end
 
 function log_setup(write_message,io)

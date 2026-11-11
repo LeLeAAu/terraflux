@@ -25,7 +25,8 @@ function worker_main()
     config_path = joinpath(directory, "config.toml")
     isfile(config_path) || error("Không tìm thấy tệp cấu hình: $config_path")
     c = TOML.parsefile(config_path)
-    wlog("Đã đọc cấu hình: $(c["days"]) ngày | T$(c["truncation"]) | $(c["layers"]) tầng sigma | chu kỳ $(c["output_hours"])h | seed=$(c["seed"])")
+    backend = get(c, "backend", "cpu")
+    wlog("Đã đọc cấu hình: $(c["days"]) ngày | T$(c["truncation"]) | $(c["layers"]) tầng sigma | chu kỳ $(c["output_hours"])h | backend=$backend | seed=$(c["seed"])")
 
     TerraFluxLive.atomic_toml(statusfile, Dict("state" => "running","phase"=>"initializing"))
     wlog("Trạng thái phiên chuyển sang 'running'. Bắt đầu chạy generate_long_run...")
@@ -36,7 +37,7 @@ function worker_main()
         TerraFluxLive.atomic_toml(statusfile,status)
     end
     path = generate_long_run(c["days"], joinpath(directory, "output");
-        truncation=c["truncation"], layers=c["layers"], output_hours=c["output_hours"], seed=c["seed"],on_progress=report)
+        truncation=c["truncation"], layers=c["layers"], output_hours=c["output_hours"], seed=c["seed"], backend=backend, on_progress=report)
 
     wlog("Mô phỏng và kiểm chứng hoàn tất thành công tại: $path")
     TerraFluxLive.atomic_toml(statusfile, Dict("state" => "complete", "phase"=>"complete","percent"=>100,"output_path" => path))

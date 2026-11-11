@@ -1,5 +1,5 @@
-# julia --threads=2 --project=. generate_long_run.jl [days=60] [output directory]
-using SpeedyWeather, Dates, Random, TOML
+# julia --threads=2 --project=. generate_long_run.jl [days=60] [output directory] [backend=cpu|cuda]
+using SpeedyWeather, Dates, Random, TOML, CUDA
 using SpeedyWeather: NCDataset, SurfacePressureOutput
 include("src/experiment_config.jl")
 using .TerraFluxExperimentConfig
@@ -12,16 +12,26 @@ function glog(msg)
     flush(stdout)
 end
 
-function generate_long_run(days=60,directory=joinpath(@__DIR__,"datasets","earth_$(days)d");truncation=32,layers=8,output_hours=6,seed=20261107,on_progress=_->nothing)
-    cfg=experiment_config(;days,truncation,layers,output_hours,seed)
+function generate_long_run(days=60,directory=joinpath(@__DIR__,"datasets","earth_$(days)d");truncation=32,layers=8,output_hours=6,seed=20261107,backend="cpu",on_progress=_->nothing)
+    cfg=experiment_config(;days,truncation,layers,output_hours,seed,backend)
     on_progress((phase="initializing",percent=0))
-    glog("Khởi tạo cấu hình: $days ngày | T$(cfg.truncation) | $(cfg.layers) tầng sigma | ghi mỗi $(cfg.output_hours)h | seed=$(cfg.seed)")
+    glog("Khởi tạo cấu hình: $days ngày | T$(cfg.truncation) | $(cfg.layers) tầng sigma | ghi mỗi $(cfg.output_hours)h | backend=$(cfg.backend) | seed=$(cfg.seed)")
     isdir(directory) && !isempty(readdir(directory)) && error("Thư mục đầu ra đã có dữ liệu: $directory")
     mkpath(directory)
     Random.seed!(cfg.seed)
     
-    glog("Thiết lập SpectralGrid (T$(cfg.truncation), $(cfg.layers) tầng sigma)...")
-    grid=SpectralGrid(truncation=cfg.truncation,nlayers=cfg.layers)
+    arch = if cfg.backend == "cuda"
+        glog("Khởi tạo backend CUDA (NVIDIA)...")
+        CUDA.functional() || error("CUDA không khả dụng hoặc driver NVIDIA chưa tương thích.")
+        dev = CUDA.device()
+        glog("Sử dụng GPU CUDA: $(CUDA.name(dev)) (VRAM: $(round(CUDA.totalmem(dev)/1024^2; digits=1)) MiB)")
+        SpeedyWeather.GPU()
+    else
+        SpeedyWeather.CPU()
+    end
+    
+    glog("Thiết lập SpectralGrid (T$(cfg.truncation), $(cfg.layers) tầng sigma, kiến trúc: $(typeof(arch)))...")
+    grid=SpectralGrid(truncation=cfg.truncation,nlayers=cfg.layers,architecture=arch)
     
     glog("Thiết lập NetCDFOutput tại: $(abspath(directory))...")
     output=NetCDFOutput(grid,PrimitiveWet;path=abspath(directory),interval=Hour(cfg.output_hours))
@@ -61,7 +71,7 @@ function generate_long_run(days=60,directory=joinpath(@__DIR__,"datasets","earth
     
     # 3. Kiểm tra trạng thái lưới
     for name in (:temperature,:u,:v,:humidity)
-        values=Array(get_step(getproperty(simulation.variables.grid,name)))
+        values=Array(SpeedyWeather.get_step(getproperty(simulation.variables.grid,name)))
         if !all(isfinite,values)
             nan_count = count(!isfinite, values)
             glog("[LỖI] Trạng thái biến '$name' chứa $nan_count giá trị không hữu hạn.")
@@ -102,16 +112,22 @@ function generate_long_run(days=60,directory=joinpath(@__DIR__,"datasets","earth
         ds.attrib["terraflux_initial_surface_diagnostics"]="unavailable"
         ds.attrib["terraflux_experiment"]="Idealized free-running moist atmosphere; not observed weather or a forecast"
         ds.attrib["terraflux_truncation"]=cfg.truncation
+        ds.attrib["terraflux_backend"]=cfg.backend
     end
     glog("[4/4] Các biến tệp NetCDF ($path) đã được xác thực hợp lệ ... ĐẠT")
     
     frames=24days÷cfg.output_hours+1
+    backend_label = cfg.backend == "cuda" ? "CUDA" : "CPU"
     manifest=Dict("model"=>"PrimitiveWetModel","truncation"=>cfg.truncation,"layers"=>cfg.layers,
         "days"=>days,"output_hours"=>cfg.output_hours,"frames"=>frames,"start"=>string(started),
-        "finish"=>string(finish),"rng_seed"=>cfg.seed,"julia_version"=>string(VERSION),"backend"=>"CPU","cpu_threads"=>Threads.nthreads(),
+        "finish"=>string(finish),"rng_seed"=>cfg.seed,"julia_version"=>string(VERSION),
+        "backend"=>backend_label,"cpu_threads"=>Threads.nthreads(),
         "elapsed_seconds"=>elapsed,"bytes"=>filesize(path),"netcdf"=>relpath(path,directory),
         "validation"=>"All saved temp/u/v/humid finite; MSLP and surface pressure finite after initialization; final state finite and T>0 K",
         "purpose"=>"Idealized model experiment, not a weather forecast")
+    if cfg.backend == "cuda"
+        manifest["gpu_device"] = CUDA.name(CUDA.device())
+    end
     open(joinpath(directory,"experiment.toml"),"w") do io;TOML.print(io,manifest);end
     
     glog("Đã tạo manifest tại: $(joinpath(directory,"experiment.toml"))")
@@ -122,5 +138,6 @@ end
 if abspath(PROGRAM_FILE)==@__FILE__
     days=isempty(ARGS) ? 60 : parse(Int,ARGS[1])
     directory=length(ARGS)>=2 ? abspath(ARGS[2]) : joinpath(@__DIR__,"datasets","earth_$(days)d")
-    generate_long_run(days,directory)
+    backend=length(ARGS)>=3 ? ARGS[3] : "cpu"
+    generate_long_run(days,directory;backend)
 end
